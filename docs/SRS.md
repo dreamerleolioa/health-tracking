@@ -77,39 +77,6 @@
 
 ---
 
-### 1.4 擴充模組
-
-#### 1.4.1 魔術練習進度表 (Magic Practice Tracker)
-
-| 欄位 | 說明 |
-|------|------|
-| 技巧名稱 | `technique_name TEXT`，例：Bicycle Bottom Deal |
-| 練習日期 | `practiced_at DATE` |
-| 熟練度 | `proficiency SMALLINT`，1–5 |
-| 練習時長 | `duration_minutes INT` |
-| 影片連結 | `video_url TEXT` (optional) |
-| 備註 | `note TEXT` |
-
-**功能需求：**
-- 顯示每個技巧的熟練度歷程折線圖
-- 提醒：超過 N 天未練習的技巧標記為「需複習」
-
-#### 1.4.2 MapleStory 角色模擬入口 (Game Tracker)
-
-| 欄位 | 說明 |
-|------|------|
-| 角色名稱 | `character_name TEXT`，例：Phantom |
-| 職業 | `job TEXT` |
-| 等級 | `level SMALLINT` |
-| 主要數值 | `stats JSONB`，儲存 ATT/BOSS/IED/CRIT 等 |
-| 快照時間 | `snapshot_at TIMESTAMPTZ` |
-| 備註 | `note TEXT` |
-
-**功能需求：**
-- 支援多角色、多快照，可比較不同時間點的數值成長
-- JSONB stats 欄位允許動態擴充，不需 migration 即可新增數值類型
-
----
 
 ## 2. 資料庫模型設計
 
@@ -195,40 +162,6 @@ CREATE TABLE daily_activities (
 CREATE INDEX idx_daily_activities_date ON daily_activities (activity_date DESC);
 
 -- =====================
--- 魔術練習
--- =====================
-CREATE TABLE magic_practices (
-    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    technique_name   TEXT        NOT NULL,
-    practiced_at     DATE        NOT NULL,
-    proficiency      SMALLINT    CHECK (proficiency BETWEEN 1 AND 5),
-    duration_minutes INT         CHECK (duration_minutes > 0),
-    video_url        TEXT,
-    note             TEXT,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_magic_practices_technique ON magic_practices (technique_name, practiced_at DESC);
-
--- =====================
--- MapleStory 角色快照
--- =====================
-CREATE TABLE maple_snapshots (
-    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    character_name   TEXT        NOT NULL,
-    job              TEXT        NOT NULL,
-    level            SMALLINT    NOT NULL CHECK (level BETWEEN 1 AND 300),
-    stats            JSONB       NOT NULL DEFAULT '{}',
-    snapshot_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    note             TEXT,
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_maple_snapshots_char     ON maple_snapshots (character_name, snapshot_at DESC);
-CREATE INDEX idx_maple_snapshots_stats    ON maple_snapshots USING gin (stats);
-
--- =====================
 -- updated_at 自動更新觸發器（通用）
 -- =====================
 CREATE OR REPLACE FUNCTION touch_updated_at()
@@ -251,9 +184,6 @@ CREATE TRIGGER trg_daily_activities_updated_at
     BEFORE UPDATE ON daily_activities
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
-CREATE TRIGGER trg_magic_practices_updated_at
-    BEFORE UPDATE ON magic_practices
-    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 ```
 
 ---
@@ -401,61 +331,6 @@ Authorization: Bearer <token>   // MVP 後加入
 
 ---
 
-### 3.5 魔術練習 `/v1/magic-practices`
-
-#### POST `/v1/magic-practices`
-```json
-{
-  "technique_name": "Bicycle Bottom Deal",
-  "practiced_at": "2026-03-24",
-  "proficiency": 3,
-  "duration_minutes": 30,
-  "video_url": null,
-  "note": "拇指施力點需調整"
-}
-```
-
-#### GET `/v1/magic-practices/summary`
-```json
-// 回傳每個技巧的最新熟練度與最後練習日
-{
-  "data": [
-    {
-      "technique_name": "Bicycle Bottom Deal",
-      "latest_proficiency": 3,
-      "last_practiced_at": "2026-03-24",
-      "days_since_practice": 0,
-      "needs_review": false
-    }
-  ]
-}
-```
-
----
-
-### 3.6 MapleStory 快照 `/v1/maple-snapshots`
-
-#### POST `/v1/maple-snapshots`
-```json
-{
-  "character_name": "Phantom",
-  "job": "Phantom",
-  "level": 290,
-  "stats": {
-    "attack_power": 12500,
-    "boss_dmg_pct": 280,
-    "ied_pct": 93,
-    "crit_dmg_pct": 65,
-    "final_dmg_pct": 45
-  },
-  "note": "第三次轉職裝備全換後"
-}
-```
-
-#### GET `/v1/maple-snapshots/:character_name/history`
-> 回傳該角色所有快照，按時間排序，用於繪製數值成長曲線
-
----
 
 ## 4. 非功能性需求
 
@@ -543,9 +418,9 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 ### Milestone 0 — 專案初始化（第 1 週）
 
 - [x] 建立 `backend/` Go 專案結構（Gin + sqlc + godotenv）
-- [ ] 建立 `frontend/` SvelteKit 專案
-- [ ] Docker Compose 啟動 PostgreSQL
-- [ ] 執行 DB migration（`golang-migrate`）
+- [x] 建立 `frontend/` SvelteKit 專案
+- [x] Docker Compose 啟動 PostgreSQL
+- [x] 執行 DB migration（`golang-migrate`）
 
 ### Milestone 1 — MVP：體位數據（第 2–3 週）
 
@@ -562,13 +437,7 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 - [ ] 儀表板：睡眠異常標記疊加至體重趨勢圖
 - [ ] 步數熱度背景
 
-### Milestone 3 — 擴充模組（第 6–7 週）
-
-- [ ] 魔術練習進度表 CRUD + 熟練度折線圖
-- [ ] 「需複習」提醒邏輯
-- [ ] MapleStory 快照 CRUD + 數值成長比較
-
-### Milestone 4 — 強化與部署（第 8–10 週）
+### Milestone 3 — 強化與部署（第 6–8 週）
 
 - [ ] SvelteKit PWA 離線緩存
 - [ ] JWT 認證（個人使用可簡化為 API Key）
@@ -580,7 +449,6 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 
 - [ ] 體重 × 睡眠品質相關係數計算
 - [ ] 通勤模式 × 步數統計分析
-- [ ] 魔術練習頻率與熟練度成長回歸分析
 - [ ] 匯出 CSV / PDF 報告
 
 ---
