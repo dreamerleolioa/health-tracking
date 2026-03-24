@@ -393,18 +393,18 @@ cd frontend && pnpm build && pnpm preview
 全部勾選才算 Milestone 1 完成：
 
 **後端 API（每項須同時通過測試才算完成）**
-- [ ] `POST /v1/body-metrics` 可新增資料並存入 DB
-- [ ] `GET /v1/body-metrics` 支援 `from` / `to` 篩選並回傳正確格式
-- [ ] `PATCH /v1/body-metrics/:id` 可 partial update
-- [ ] `DELETE /v1/body-metrics/:id` 回傳 204
-- [ ] Update/Delete 找不到 id 時回傳 404
-- [ ] `go test ./...` 全數通過（含 Step 2-5 handler mock 測試、Step 2-5b 整合測試）
+- [x] `POST /v1/body-metrics` 可新增資料並存入 DB
+- [x] `GET /v1/body-metrics` 支援 `from` / `to` 篩選並回傳正確格式
+- [x] `PATCH /v1/body-metrics/:id` 可 partial update
+- [x] `DELETE /v1/body-metrics/:id` 回傳 204
+- [x] Update/Delete 找不到 id 時回傳 404
+- [x] `go test ./...` 全數通過（含 Step 2-5 handler mock 測試、Step 2-5b 整合測試）
 
-**前端**
+**前端**（程式碼已完成，待手動驗證後勾選）
 - [ ] 前端列表頁顯示資料
 - [ ] 前端可新增一筆資料並即時反映
 - [ ] 前端可刪除一筆資料
 - [ ] 折線圖正確顯示體重 / 體脂率 / 肌肉率趨勢（同天取最新一筆）
 
-**環境**
+**環境**（設定已驗證正確，待實際啟動確認）
 - [ ] Local / Production 環境切換正常
