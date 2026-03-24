@@ -44,13 +44,15 @@ sql:
 
 需包含以下 query：
 
-| Query 名稱 | SQL 動作 | 對應 API |
+| Query 名稱 | SQL 動作 | 對應用途 |
 |-----------|---------|---------|
 | `CreateBodyMetric` | INSERT | POST `/v1/body-metrics` |
-| `GetBodyMetric` | SELECT by id | （內部用） |
-| `ListBodyMetrics` | SELECT with date range + limit | GET `/v1/body-metrics` |
+| `GetBodyMetric` | SELECT by id | Update/Delete handler 內部用（判斷 404） |
+| `ListBodyMetrics` | SELECT with date range + limit，`ORDER BY recorded_at DESC` | GET `/v1/body-metrics` |
 | `UpdateBodyMetric` | UPDATE partial | PATCH `/v1/body-metrics/:id` |
 | `DeleteBodyMetric` | DELETE by id | DELETE `/v1/body-metrics/:id` |
+
+> **注意：** `ListBodyMetrics` 需 `ORDER BY recorded_at DESC`，前端折線圖使用時需 dedup（同一天只取第一筆，即最新一筆）。
 
 ### 1-3 執行生成
 
@@ -90,9 +92,21 @@ type CreateBodyMetricRequest struct {
 | `DeleteBodyMetric` | DELETE | `/v1/body-metrics/:id` |
 
 **驗證規則：**
-- `visceral_fat`：1–30
+- `weight_kg`：30–300（選填，有提供時驗證）
+- `body_fat_pct`：1–70（選填，有提供時驗證）
+- `muscle_pct`：10–80（選填，有提供時驗證）
+- `visceral_fat`：1–30（選填，有提供時驗證）
 - `recorded_at`：必填，需為合法時間
 - `from` / `to`：格式 `YYYY-MM-DD`，`to` 不得早於 `from`
+
+**404 處理：**
+Update/Delete handler 執行後若 sqlc 回傳 `pgx.ErrNoRows`（或 `sql.ErrNoRows`），回傳 404。不需獨立的 Get endpoint。
+
+**回應格式：**
+- POST → 201，body：`{ "data": { ...BodyMetric } }`
+- GET → 200，body：`{ "data": [...], "meta": { "total": n, "from": "...", "to": "..." } }`
+- PATCH → 200，body：`{ "data": { ...BodyMetric } }`
+- DELETE → 204，無 body
 
 **錯誤格式**（符合 SRS 規範）：
 ```json
@@ -128,29 +142,55 @@ curl "http://localhost:8080/v1/body-metrics?from=2026-01-01&to=2026-03-31"
 
 ### 3-1 `src/lib/api/client.ts`
 
-封裝 `fetch`，處理：
+已存在，封裝 `fetch`，處理：
 - Base URL（讀取 `PUBLIC_API_BASE_URL` 環境變數）
 - `Content-Type: application/json`
-- 統一錯誤格式解析，拋出 `ApiError`
+- 統一錯誤格式解析，拋出 `ApiException`
 
-### 3-2 `src/lib/api/body-metrics.ts`
+### 3-2 新建 `src/lib/api/body-metrics.ts`
 
 ```typescript
-export type BodyMetric = {
-  id: string
-  weight_kg: number | null
-  body_fat_pct: number | null
-  muscle_pct: number | null
-  visceral_fat: number | null
+import { api } from './client'
+import type { BodyMetric, ListResponse, ItemResponse } from '$lib/types'
+
+export type CreateBodyMetricInput = {
+  weight_kg?: number
+  body_fat_pct?: number
+  muscle_pct?: number
+  visceral_fat?: number
   recorded_at: string
-  note: string | null
-  created_at: string
+  note?: string
 }
 
-export function createBodyMetric(data: CreateBodyMetricInput): Promise<BodyMetric>
-export function listBodyMetrics(params: { from?: string; to?: string; limit?: number }): Promise<{ data: BodyMetric[]; meta: Meta }>
-export function updateBodyMetric(id: string, data: Partial<CreateBodyMetricInput>): Promise<BodyMetric>
-export function deleteBodyMetric(id: string): Promise<void>
+export async function createBodyMetric(data: CreateBodyMetricInput): Promise<BodyMetric> {
+  const res = await api.post<ItemResponse<BodyMetric>>('/body-metrics', data)
+  return res.data
+}
+
+export async function listBodyMetrics(params?: {
+  from?: string
+  to?: string
+  limit?: number
+}): Promise<ListResponse<BodyMetric>> {
+  const query = new URLSearchParams()
+  if (params?.from) query.set('from', params.from)
+  if (params?.to) query.set('to', params.to)
+  if (params?.limit) query.set('limit', String(params.limit))
+  const qs = query.toString() ? `?${query}` : ''
+  return api.get<ListResponse<BodyMetric>>(`/body-metrics${qs}`)
+}
+
+export async function updateBodyMetric(
+  id: string,
+  data: Partial<CreateBodyMetricInput>
+): Promise<BodyMetric> {
+  const res = await api.patch<ItemResponse<BodyMetric>>(`/body-metrics/${id}`, data)
+  return res.data
+}
+
+export async function deleteBodyMetric(id: string): Promise<void> {
+  return api.delete(`/body-metrics/${id}`)
+}
 ```
 
 ### 3-3 `frontend/.env`
@@ -171,7 +211,24 @@ PUBLIC_API_BASE_URL=http://localhost:8080/v1
 - 每列有「刪除」按鈕
 - 頁面頂部有「新增」按鈕，展開 inline form 或跳轉新增頁
 
-### 4-2 新增表單
+### 4-2 `src/routes/body-metrics/+page.ts`
+
+```typescript
+import { listBodyMetrics } from '$lib/api/body-metrics'
+import type { PageLoad } from './$types'
+
+export const load: PageLoad = async () => {
+  try {
+    return await listBodyMetrics({ limit: 90 })
+  } catch {
+    return { data: [], meta: { total: 0 } }
+  }
+}
+```
+
+> 失敗時回傳空陣列，頁面顯示「無資料」狀態，不 throw error。
+
+### 4-3 新增表單
 
 欄位：
 | 欄位 | 元件 | 備註 |
@@ -203,6 +260,7 @@ pnpm add layerchart
 - 三條線：體重(kg)、體脂率(%)、肌肉率(%)
 - Tooltip：hover 顯示當天數值
 - 資料來源：列表頁載入的同一份資料，不額外打 API
+- **Dedup 邏輯：** 同一天多筆資料，折線圖只取 `recorded_at` 最新的那筆（資料已 `ORDER BY recorded_at DESC`，取每天第一次出現的即可）
 
 ### 放置位置
 
@@ -227,7 +285,7 @@ cd frontend && pnpm build && pnpm preview
 ```
 
 檢查項目：
-- [ ] 後端讀取正確的 `.env.local` / `.env.production`
+- [ ] 後端讀取正確的 `.env.local` / `.env.production`（key 為 `DATABASE_URL`，非 `DB_DSN`）
 - [ ] 前端 `PUBLIC_API_BASE_URL` 指向正確
 - [ ] CORS 不報錯
 
@@ -241,8 +299,9 @@ cd frontend && pnpm build && pnpm preview
 - [ ] `GET /v1/body-metrics` 支援 `from` / `to` 篩選並回傳正確格式
 - [ ] `PATCH /v1/body-metrics/:id` 可 partial update
 - [ ] `DELETE /v1/body-metrics/:id` 回傳 204
+- [ ] Update/Delete 找不到 id 時回傳 404
 - [ ] 前端列表頁顯示資料
 - [ ] 前端可新增一筆資料並即時反映
 - [ ] 前端可刪除一筆資料
-- [ ] 折線圖正確顯示體重 / 體脂率 / 肌肉率趨勢
+- [ ] 折線圖正確顯示體重 / 體脂率 / 肌肉率趨勢（同天取最新一筆）
 - [ ] Local / Production 環境切換正常

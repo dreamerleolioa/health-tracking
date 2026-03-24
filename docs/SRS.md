@@ -342,13 +342,13 @@ Authorization: Bearer <token>   // MVP 後加入
 # .env.local
 APP_ENV=local
 SERVER_PORT=8080
-DB_DSN=postgres://postgres:password@localhost:5432/health_tracking?sslmode=disable
+DATABASE_URL=postgres://postgres:password@localhost:5432/health_tracking?sslmode=disable
 CORS_ORIGINS=http://localhost:5173
 
 # .env.production
 APP_ENV=production
 SERVER_PORT=8080
-DB_DSN=postgres://user:pass@cloud-db-host:5432/health_tracking?sslmode=require
+DATABASE_URL=postgres://user:pass@cloud-db-host:5432/health_tracking?sslmode=require
 CORS_ORIGINS=https://health.yourdomain.com
 ```
 

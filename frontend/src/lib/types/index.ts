@@ -3,7 +3,7 @@ export interface BodyMetric {
   id: string;
   weight_kg: number | null;
   body_fat_pct: number | null;
-  muscle_kg: number | null;
+  muscle_pct: number | null;
   visceral_fat: number | null;
   recorded_at: string;
   note: string | null;
