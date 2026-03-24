@@ -8,6 +8,7 @@ export interface BodyMetric {
   recorded_at: string;
   note: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 // SleepLog

@@ -14,7 +14,7 @@
 			prefix: '',
 			value: '72.5',
 			unit: 'kg',
-			color: '#E4000F',
+			color: '#0EA5E9',
 		},
 		{
 			label: '體脂率',
@@ -22,7 +22,7 @@
 			prefix: '',
 			value: '18.2',
 			unit: '%',
-			color: '#F97316',
+			color: '#F59E0B',
 		},
 		{
 			label: '肌肉率',
@@ -30,7 +30,7 @@
 			prefix: '',
 			value: '35.2',
 			unit: '%',
-			color: '#3B82F6',
+			color: '#10B981',
 		},
 		{
 			label: '內臟脂肪',

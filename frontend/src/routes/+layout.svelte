@@ -19,7 +19,7 @@
 <div class="min-h-screen bg-[#1a1a2e]">
 	<!-- Top Nav -->
 	<nav class="h-14 flex items-center px-6 bg-[#E4000F]">
-		<span class="text-white font-black tracking-widest text-lg mr-auto">HEALTH TRACKER</span>
+		<a href="/" class="text-white font-black tracking-widest text-lg mr-auto hover:opacity-80 transition-opacity">HEALTH TRACKER</a>
 		<div class="flex items-center gap-6">
 			{#each navItems as item}
 				{#if item.enabled}
