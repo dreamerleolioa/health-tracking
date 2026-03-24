@@ -371,7 +371,7 @@
 							{m.muscle_pct != null ? `${m.muscle_pct}` : '—'}
 							{#if m.muscle_pct != null}<span class="text-xs font-normal text-gray-400">%</span>{/if}
 						</td>
-						<td class="px-4 py-3 text-right text-xs {vClass}">
+						<td class="px-4 py-3 text-right text-sm font-medium {vClass}">
 							{m.visceral_fat != null ? `Lv.${m.visceral_fat}` : '—'}
 						</td>
 						<td class="px-4 py-3 text-right">
