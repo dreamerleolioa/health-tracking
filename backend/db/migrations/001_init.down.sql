@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS maple_snapshots;
-DROP TABLE IF EXISTS magic_practices;
 DROP TABLE IF EXISTS daily_activities;
 DROP TABLE IF EXISTS sleep_logs;
 DROP TABLE IF EXISTS body_metrics;
