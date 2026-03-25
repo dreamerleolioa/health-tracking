@@ -31,6 +31,9 @@ CREATE TABLE sleep_logs (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_sleep_logs_sleep_at  ON sleep_logs (sleep_at DESC);
+CREATE INDEX idx_sleep_logs_abnormal  ON sleep_logs (abnormal_wake) WHERE abnormal_wake = TRUE;
+
 CREATE TABLE daily_activities (
     id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     activity_date    DATE         NOT NULL UNIQUE,
@@ -41,3 +44,5 @@ CREATE TABLE daily_activities (
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_daily_activities_date ON daily_activities (activity_date DESC);

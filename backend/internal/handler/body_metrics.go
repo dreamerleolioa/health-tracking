@@ -15,6 +15,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// withTimeout wraps the gin request context with a 5s DB query timeout.
+// Satisfies SRS §4.2: context.WithTimeout 避免慢查詢阻塞。
+func withTimeout(c *gin.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(c.Request.Context(), 5*time.Second)
+}
+
 var validate = validator.New()
 
 // Store defines the data access methods used by body metrics handlers.
@@ -161,7 +167,9 @@ func CreateBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
-		metric, err := store.CreateBodyMetric(c.Request.Context(), &sqlcdb.CreateBodyMetricParams{
+		ctx, cancel := withTimeout(c)
+		defer cancel()
+		metric, err := store.CreateBodyMetric(ctx, &sqlcdb.CreateBodyMetricParams{
 			WeightKg:    float64ToNullString(req.WeightKg),
 			BodyFatPct:  float64ToNullString(req.BodyFatPct),
 			MusclePct:   float64ToNullString(req.MusclePct),
@@ -213,7 +221,9 @@ func ListBodyMetrics(store Store) gin.HandlerFunc {
 			return
 		}
 
-		metrics, err := store.ListBodyMetrics(c.Request.Context(), params)
+		ctx, cancel := withTimeout(c)
+		defer cancel()
+		metrics, err := store.ListBodyMetrics(ctx, params)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, errResponse("INTERNAL_ERROR", "failed to list body metrics"))
 			return
@@ -259,7 +269,9 @@ func UpdateBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
-		metric, err := store.UpdateBodyMetric(c.Request.Context(), &sqlcdb.UpdateBodyMetricParams{
+		ctx, cancel := withTimeout(c)
+		defer cancel()
+		metric, err := store.UpdateBodyMetric(ctx, &sqlcdb.UpdateBodyMetricParams{
 			ID:          id,
 			WeightKg:    float64ToNullString(req.WeightKg),
 			BodyFatPct:  float64ToNullString(req.BodyFatPct),
@@ -288,7 +300,9 @@ func DeleteBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
-		if _, err := store.GetBodyMetric(c.Request.Context(), id); err != nil {
+		ctx, cancel := withTimeout(c)
+		defer cancel()
+		if _, err := store.GetBodyMetric(ctx, id); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(http.StatusNotFound, errResponse("NOT_FOUND", "body metric not found"))
 				return
@@ -297,7 +311,7 @@ func DeleteBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
-		if err := store.DeleteBodyMetric(c.Request.Context(), id); err != nil {
+		if err := store.DeleteBodyMetric(ctx, id); err != nil {
 			c.JSON(http.StatusInternalServerError, errResponse("INTERNAL_ERROR", "failed to delete body metric"))
 			return
 		}
