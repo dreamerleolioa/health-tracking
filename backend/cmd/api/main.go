@@ -43,6 +43,18 @@ func main() {
 		v1.GET("/body-metrics", handler.ListBodyMetrics(queries))
 		v1.PATCH("/body-metrics/:id", handler.UpdateBodyMetric(queries))
 		v1.DELETE("/body-metrics/:id", handler.DeleteBodyMetric(queries))
+
+		// Sleep Logs
+		v1.POST("/sleep-logs", handler.CreateSleepLog(queries))
+		v1.GET("/sleep-logs", handler.ListSleepLogs(queries))
+		v1.PATCH("/sleep-logs/:id", handler.UpdateSleepLog(queries))
+		v1.DELETE("/sleep-logs/:id", handler.DeleteSleepLog(queries))
+
+		// Daily Activities
+		v1.POST("/daily-activities", handler.CreateDailyActivity(queries))
+		v1.GET("/daily-activities", handler.ListDailyActivities(queries))
+		v1.PATCH("/daily-activities/:id", handler.UpdateDailyActivity(queries))
+		v1.DELETE("/daily-activities/:id", handler.DeleteDailyActivity(queries))
 	}
 
 	addr := ":" + cfg.ServerPort
