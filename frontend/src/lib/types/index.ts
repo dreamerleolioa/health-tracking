@@ -16,10 +16,12 @@ export interface SleepLog {
   id: string;
   sleep_at: string;
   wake_at: string;
-  duration_min: number;
+  duration_min: number | null;
   abnormal_wake: boolean;
   quality: number | null;
   note: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // DailyActivity
@@ -32,6 +34,8 @@ export interface DailyActivity {
   commute_mode: CommuteMode | null;
   commute_minutes: number | null;
   note: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // MagicPractice
