@@ -599,6 +599,19 @@ func TestCreateBodyMetric(t *testing.T) {
 - Pull Request 觸發 `go test ./...`，任一測試失敗則阻擋合併
 - 產出覆蓋率報告（`-coverprofile`），目標覆蓋率 ≥ 80%
 
+#### ⚠️ PostgreSQL 時區資料健康檢查
+
+`ListSleepLogs` 查詢使用 `AT TIME ZONE 'Asia/Taipei'`。`postgres:16-alpine` 目前包含時區資料，但未來 base image 升版可能靜默移除，導致查詢結果錯誤卻不報錯。
+
+**規範：** 在所有使用 `AT TIME ZONE` 查詢的整合測試 `TestMain` 中，於 migration 執行後加入以下健康檢查：
+
+```go
+var tzCheck string
+if err := db.QueryRowContext(ctx, "SELECT (NOW() AT TIME ZONE 'Asia/Taipei')::TEXT").Scan(&tzCheck); err != nil {
+    panic("PostgreSQL timezone data unavailable: " + err.Error())
+}
+```
+
 ---
 
 ### 4.4 前端 PWA 離線緩存策略 (SvelteKit)
@@ -651,10 +664,18 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 
 ### Milestone 3 — 認證與強化（第 6–8 週）
 
+> ⚠️ **Migration 注意事項：** M2 的 `daily_activities` 採 `UNIQUE(activity_date)`（無 `user_id`）。M3 加入 `user_id` 時，必須以單一 transaction 依序執行以下步驟，否則對有既有資料的資料表執行 migration 會失敗：
+>
+> 1. 新增 `user_id UUID REFERENCES users(id)` — 先設為 nullable
+> 2. 以系統/預設 `user_id` 填充既有資料列
+> 3. `ALTER COLUMN user_id SET NOT NULL`
+> 4. `DROP CONSTRAINT UNIQUE(activity_date)`
+> 5. `ADD CONSTRAINT UNIQUE(user_id, activity_date)`
+
 - [ ] Google OAuth 2.0 登入（後端 `/v1/auth/*` 端點）
 - [ ] JWT 簽發 / Refresh Token 機制
 - [ ] SvelteKit 登入頁與 Auth 狀態管理（`+layout.svelte` guard）
-- [ ] 所有資料表加入 `user_id` 外鍵並套用 migration
+- [ ] 所有資料表加入 `user_id` 外鍵並套用 migration（含上方 `daily_activities` 安全遷移序列）
 - [ ] Auth 流程測試（OAuth callback、token 刷新、登出、401 防護、`user_id` 資料隔離）
 - [ ] CI/CD（GitHub Actions → Railway / Fly.io）；Pipeline 加入 `go test ./... -coverprofile` 覆蓋率門檻 ≥ 80%
 - [ ] SvelteKit PWA 離線緩存
