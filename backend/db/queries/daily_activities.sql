@@ -15,10 +15,10 @@ SELECT * FROM daily_activities WHERE activity_date = $1;
 -- name: ListDailyActivities :many
 SELECT * FROM daily_activities
 WHERE
-    ($1::DATE IS NULL OR activity_date >= $1::DATE)
-    AND ($2::DATE IS NULL OR activity_date <= $2::DATE)
+    (sqlc.narg('from')::DATE IS NULL OR activity_date >= sqlc.narg('from')::DATE)
+    AND (sqlc.narg('to')::DATE IS NULL OR activity_date <= sqlc.narg('to')::DATE)
 ORDER BY activity_date DESC
-LIMIT $3;
+LIMIT sqlc.arg('limit');
 
 -- name: UpdateDailyActivity :one
 UPDATE daily_activities

@@ -111,13 +111,13 @@ LIMIT $3
 `
 
 type ListDailyActivitiesParams struct {
-	Column1 time.Time `json:"column_1"`
-	Column2 time.Time `json:"column_2"`
-	Limit   int32     `json:"limit"`
+	From  sql.NullTime `json:"from"`
+	To    sql.NullTime `json:"to"`
+	Limit int32        `json:"limit"`
 }
 
 func (q *Queries) ListDailyActivities(ctx context.Context, arg *ListDailyActivitiesParams) ([]DailyActivity, error) {
-	rows, err := q.db.QueryContext(ctx, listDailyActivities, arg.Column1, arg.Column2, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listDailyActivities, arg.From, arg.To, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

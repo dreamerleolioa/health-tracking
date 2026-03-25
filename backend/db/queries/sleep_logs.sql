@@ -13,11 +13,11 @@ SELECT * FROM sleep_logs WHERE id = $1;
 SELECT * FROM sleep_logs
 WHERE
     -- Filter by wake_at Taipei date (user thinks of sleep by the morning they woke up)
-    ($1::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE >= $1::DATE)
-    AND ($2::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE <= $2::DATE)
-    AND ($3::BOOLEAN IS NULL OR ($3 = FALSE) OR abnormal_wake = TRUE)
+    (sqlc.narg('from')::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE >= sqlc.narg('from')::DATE)
+    AND (sqlc.narg('to')::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE <= sqlc.narg('to')::DATE)
+    AND (sqlc.narg('abnormal_only')::BOOLEAN IS NULL OR sqlc.narg('abnormal_only') = FALSE OR abnormal_wake = TRUE)
 ORDER BY wake_at DESC
-LIMIT $4;
+LIMIT sqlc.arg('limit');
 
 -- name: UpdateSleepLog :one
 UPDATE sleep_logs

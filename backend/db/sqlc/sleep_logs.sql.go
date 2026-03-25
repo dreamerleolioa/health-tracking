@@ -87,23 +87,23 @@ WHERE
     -- Filter by wake_at Taipei date (user thinks of sleep by the morning they woke up)
     ($1::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE >= $1::DATE)
     AND ($2::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE <= $2::DATE)
-    AND ($3::BOOLEAN IS NULL OR ($3 = FALSE) OR abnormal_wake = TRUE)
+    AND ($3::BOOLEAN IS NULL OR $3 = FALSE OR abnormal_wake = TRUE)
 ORDER BY wake_at DESC
 LIMIT $4
 `
 
 type ListSleepLogsParams struct {
-	Column1 time.Time `json:"column_1"`
-	Column2 time.Time `json:"column_2"`
-	Column3 bool      `json:"column_3"`
-	Limit   int32     `json:"limit"`
+	From         sql.NullTime `json:"from"`
+	To           sql.NullTime `json:"to"`
+	AbnormalOnly sql.NullBool `json:"abnormal_only"`
+	Limit        int32        `json:"limit"`
 }
 
 func (q *Queries) ListSleepLogs(ctx context.Context, arg *ListSleepLogsParams) ([]SleepLog, error) {
 	rows, err := q.db.QueryContext(ctx, listSleepLogs,
-		arg.Column1,
-		arg.Column2,
-		arg.Column3,
+		arg.From,
+		arg.To,
+		arg.AbnormalOnly,
 		arg.Limit,
 	)
 	if err != nil {
