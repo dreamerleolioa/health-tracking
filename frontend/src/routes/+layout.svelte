@@ -6,8 +6,8 @@
 
 	const navItems = [
 		{ label: '體位數據', href: '/body-metrics', enabled: true },
-		{ label: '睡眠', href: '/sleep', enabled: false },
-		{ label: '活動', href: '/activities', enabled: false },
+		{ label: '睡眠', href: '/sleep-logs', enabled: true },
+		{ label: '活動', href: '/daily-activities', enabled: true },
 	];
 </script>
 
