@@ -4,10 +4,30 @@
 	import { slide, fade, fly } from 'svelte/transition';
 	import { LineChart } from 'layerchart';
 	import { createBodyMetric, updateBodyMetric, deleteBodyMetric } from '$lib/api/body-metrics';
-	import type { BodyMetric } from '$lib/types';
+	import type { BodyMetric, SleepLog, DailyActivity } from '$lib/types';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	// abnormalDates: Set of YYYY-MM-DD strings where abnormal_wake = true
+	const abnormalDates = $derived(
+		new Set(
+			(data.sleepLogs as SleepLog[])
+				.filter((l) => l.abnormal_wake)
+				.map((l) => new Date(l.wake_at).toLocaleDateString('en-CA'))
+		)
+	);
+
+	// stepsMap: activity_date → steps count
+	const stepsMap = $derived(
+		new Map(
+			(data.activities as DailyActivity[])
+				.filter((a) => a.steps != null)
+				.map((a) => [a.activity_date, a.steps as number])
+		)
+	);
+
+	const maxSteps = $derived(Math.max(1, ...[...stepsMap.values()]));
 
 	// Dedup: data is ORDER BY recorded_at DESC → first per day = latest
 	const chartData = $derived.by(() => {
@@ -153,6 +173,18 @@
 		return 'same';
 	}
 
+	// chartDataWithMeta: extend chartData with abnormal + steps info
+	const chartDataWithMeta = $derived(
+		chartData.map((m) => {
+			const dateKey = new Date(m.recorded_at).toLocaleDateString('en-CA');
+			return {
+				...m,
+				isAbnormal: abnormalDates.has(dateKey),
+				steps: stepsMap.get(dateKey) ?? 0
+			};
+		})
+	);
+
 	// higherIsBetter = true for muscle_pct; false for weight/body_fat/visceral_fat
 	function deltaClass(d: Delta, higherIsBetter: boolean): string {
 		if (d === 'none' || d === 'same') return 'text-gray-800';
@@ -217,6 +249,41 @@
 						}
 					}}
 				/>
+			</div>
+
+			<!-- Abnormal sleep marker strip -->
+			<div class="relative h-6 px-10 flex items-center">
+				{#each chartDataWithMeta as point}
+					{@const dates = chartDataWithMeta.map((d) => new Date(d.recorded_at).getTime())}
+					{@const minT = Math.min(...dates)}
+					{@const maxT = Math.max(...dates)}
+					{@const curT = new Date(point.recorded_at).getTime()}
+					{@const pct = maxT === minT ? 50 : ((curT - minT) / (maxT - minT)) * 100}
+					{#if point.isAbnormal}
+						<span
+							class="absolute text-orange-500 text-[10px] leading-none -translate-x-1/2"
+							style="left: {pct}%"
+							title="異常喚醒 {new Date(point.recorded_at).toLocaleDateString('zh-TW')}"
+						>▲</span>
+					{/if}
+				{/each}
+			</div>
+
+			<!-- Steps heatmap strip -->
+			<div class="relative h-3 px-10 flex items-stretch mb-1 rounded-b overflow-hidden">
+				{#each chartDataWithMeta as point}
+					{@const dates = chartDataWithMeta.map((d) => new Date(d.recorded_at).getTime())}
+					{@const minT = Math.min(...dates)}
+					{@const maxT = Math.max(...dates)}
+					{@const curT = new Date(point.recorded_at).getTime()}
+					{@const pct = maxT === minT ? 50 : ((curT - minT) / (maxT - minT)) * 100}
+					{@const opacity = point.steps > 0 ? 0.15 + (point.steps / maxSteps) * 0.6 : 0}
+					<div
+						class="absolute inset-y-0 w-2 -translate-x-1/2 bg-emerald-500 rounded-sm"
+						style="left: {pct}%; opacity: {opacity}"
+						title="步數 {point.steps.toLocaleString()}"
+					></div>
+				{/each}
 			</div>
 		{:else}
 			<div class="h-[160px] flex flex-col items-center justify-center gap-1 text-gray-400">
