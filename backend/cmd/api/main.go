@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"health-tracking/backend/internal/auth"
 	"health-tracking/backend/internal/config"
 	appdb "health-tracking/backend/internal/db"
 	"health-tracking/backend/internal/handler"
@@ -29,32 +30,59 @@ func main() {
 
 	queries := sqlcdb.New(database)
 
+	jwtSvc := auth.NewJWTService(cfg.JWTSecret, cfg.JWTAccessTTL)
+
+	authHandler := handler.NewAuthHandler(
+		queries,
+		jwtSvc,
+		cfg.GoogleClientID,
+		cfg.GoogleClientSecret,
+		cfg.GoogleRedirectURL,
+		cfg.FrontendURL,
+		cfg.JWTRefreshTTL,
+	)
+
 	if cfg.AppEnv == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := gin.Default()
+	r.SetTrustedProxies(nil)
 	r.Use(middleware.CORS(cfg.CORSOrigins))
 
 	v1 := r.Group("/v1")
 	{
 		v1.GET("/health", handler.HealthCheck)
-		v1.POST("/body-metrics", handler.CreateBodyMetric(queries))
-		v1.GET("/body-metrics", handler.ListBodyMetrics(queries))
-		v1.PATCH("/body-metrics/:id", handler.UpdateBodyMetric(queries))
-		v1.DELETE("/body-metrics/:id", handler.DeleteBodyMetric(queries))
 
-		// Sleep Logs
-		v1.POST("/sleep-logs", handler.CreateSleepLog(queries))
-		v1.GET("/sleep-logs", handler.ListSleepLogs(queries))
-		v1.PATCH("/sleep-logs/:id", handler.UpdateSleepLog(queries))
-		v1.DELETE("/sleep-logs/:id", handler.DeleteSleepLog(queries))
+		// Auth routes (no JWT required)
+		authGroup := v1.Group("/auth")
+		{
+			authGroup.GET("/google", authHandler.RedirectToGoogle)
+			authGroup.GET("/google/callback", authHandler.GoogleCallback)
+			authGroup.POST("/refresh", authHandler.RefreshToken)
+			authGroup.POST("/logout", authHandler.Logout)
+			authGroup.GET("/me", middleware.JWTAuth(jwtSvc), authHandler.Me)
+		}
 
-		// Daily Activities
-		v1.POST("/daily-activities", handler.CreateDailyActivity(queries))
-		v1.GET("/daily-activities", handler.ListDailyActivities(queries))
-		v1.PATCH("/daily-activities/:id", handler.UpdateDailyActivity(queries))
-		v1.DELETE("/daily-activities/:id", handler.DeleteDailyActivity(queries))
+		// Protected routes
+		protected := v1.Group("/")
+		protected.Use(middleware.JWTAuth(jwtSvc))
+		{
+			protected.POST("/body-metrics", handler.CreateBodyMetric(queries))
+			protected.GET("/body-metrics", handler.ListBodyMetrics(queries))
+			protected.PATCH("/body-metrics/:id", handler.UpdateBodyMetric(queries))
+			protected.DELETE("/body-metrics/:id", handler.DeleteBodyMetric(queries))
+
+			protected.POST("/sleep-logs", handler.CreateSleepLog(queries))
+			protected.GET("/sleep-logs", handler.ListSleepLogs(queries))
+			protected.PATCH("/sleep-logs/:id", handler.UpdateSleepLog(queries))
+			protected.DELETE("/sleep-logs/:id", handler.DeleteSleepLog(queries))
+
+			protected.POST("/daily-activities", handler.CreateDailyActivity(queries))
+			protected.GET("/daily-activities", handler.ListDailyActivities(queries))
+			protected.PATCH("/daily-activities/:id", handler.UpdateDailyActivity(queries))
+			protected.DELETE("/daily-activities/:id", handler.DeleteDailyActivity(queries))
+		}
 	}
 
 	addr := ":" + cfg.ServerPort

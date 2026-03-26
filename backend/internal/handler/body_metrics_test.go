@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sqlcdb "health-tracking/backend/db/sqlc"
+	"health-tracking/backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -20,17 +21,17 @@ import (
 
 type mockStore struct {
 	createFn func(context.Context, *sqlcdb.CreateBodyMetricParams) (sqlcdb.BodyMetric, error)
-	getFn    func(context.Context, uuid.UUID) (sqlcdb.BodyMetric, error)
+	getFn    func(context.Context, *sqlcdb.GetBodyMetricParams) (sqlcdb.BodyMetric, error)
 	listFn   func(context.Context, *sqlcdb.ListBodyMetricsParams) ([]sqlcdb.BodyMetric, error)
 	updateFn func(context.Context, *sqlcdb.UpdateBodyMetricParams) (sqlcdb.BodyMetric, error)
-	deleteFn func(context.Context, uuid.UUID) error
+	deleteFn func(context.Context, *sqlcdb.DeleteBodyMetricParams) error
 }
 
 func (m *mockStore) CreateBodyMetric(ctx context.Context, arg *sqlcdb.CreateBodyMetricParams) (sqlcdb.BodyMetric, error) {
 	return m.createFn(ctx, arg)
 }
-func (m *mockStore) GetBodyMetric(ctx context.Context, id uuid.UUID) (sqlcdb.BodyMetric, error) {
-	return m.getFn(ctx, id)
+func (m *mockStore) GetBodyMetric(ctx context.Context, arg *sqlcdb.GetBodyMetricParams) (sqlcdb.BodyMetric, error) {
+	return m.getFn(ctx, arg)
 }
 func (m *mockStore) ListBodyMetrics(ctx context.Context, arg *sqlcdb.ListBodyMetricsParams) ([]sqlcdb.BodyMetric, error) {
 	return m.listFn(ctx, arg)
@@ -38,16 +39,21 @@ func (m *mockStore) ListBodyMetrics(ctx context.Context, arg *sqlcdb.ListBodyMet
 func (m *mockStore) UpdateBodyMetric(ctx context.Context, arg *sqlcdb.UpdateBodyMetricParams) (sqlcdb.BodyMetric, error) {
 	return m.updateFn(ctx, arg)
 }
-func (m *mockStore) DeleteBodyMetric(ctx context.Context, id uuid.UUID) error {
-	return m.deleteFn(ctx, id)
+func (m *mockStore) DeleteBodyMetric(ctx context.Context, arg *sqlcdb.DeleteBodyMetricParams) error {
+	return m.deleteFn(ctx, arg)
 }
 
 // --- Helpers ---
 
+var testUserID = uuid.New()
+
 func newTestRouter(h gin.HandlerFunc, method, path string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Handle(method, path, h)
+	r.Handle(method, path, func(c *gin.Context) {
+		c.Set(middleware.UserIDKey, testUserID)
+		h(c)
+	})
 	return r
 }
 
@@ -254,10 +260,10 @@ func TestDeleteBodyMetric(t *testing.T) {
 			name: "success 204",
 			id:   validID,
 			setupStore: func(ms *mockStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.BodyMetric, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetBodyMetricParams) (sqlcdb.BodyMetric, error) {
 					return sampleMetric(), nil
 				}
-				ms.deleteFn = func(_ context.Context, _ uuid.UUID) error {
+				ms.deleteFn = func(_ context.Context, _ *sqlcdb.DeleteBodyMetricParams) error {
 					return nil
 				}
 			},
@@ -267,7 +273,7 @@ func TestDeleteBodyMetric(t *testing.T) {
 			name: "id not found returns 404",
 			id:   validID,
 			setupStore: func(ms *mockStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.BodyMetric, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetBodyMetricParams) (sqlcdb.BodyMetric, error) {
 					return sqlcdb.BodyMetric{}, sql.ErrNoRows
 				}
 			},

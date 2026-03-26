@@ -23,6 +23,7 @@ func TestCreateAndGetDailyActivity(t *testing.T) {
 
 	steps := sql.NullInt32{Int32: 8500, Valid: true}
 	created, err := queries.CreateDailyActivity(ctx, &sqlcdb.CreateDailyActivityParams{
+		UserID:       testUserID,
 		ActivityDate: date,
 		Steps:        steps,
 	})
@@ -36,7 +37,7 @@ func TestCreateAndGetDailyActivity(t *testing.T) {
 		t.Errorf("steps mismatch: %+v", created.Steps)
 	}
 
-	fetched, err := queries.GetDailyActivity(ctx, created.ID)
+	fetched, err := queries.GetDailyActivity(ctx, &sqlcdb.GetDailyActivityParams{ID: created.ID, UserID: testUserID})
 	if err != nil {
 		t.Fatalf("GetDailyActivity: %v", err)
 	}
@@ -50,6 +51,7 @@ func TestDailyActivityUniqueConstraint(t *testing.T) {
 	date := uniqueDate(10000) // distinct range from other tests
 
 	_, err := queries.CreateDailyActivity(ctx, &sqlcdb.CreateDailyActivityParams{
+		UserID:       testUserID,
 		ActivityDate: date,
 	})
 	if err != nil {
@@ -57,6 +59,7 @@ func TestDailyActivityUniqueConstraint(t *testing.T) {
 	}
 
 	_, err = queries.CreateDailyActivity(ctx, &sqlcdb.CreateDailyActivityParams{
+		UserID:       testUserID,
 		ActivityDate: date,
 	})
 	if err == nil {
@@ -74,6 +77,7 @@ func TestUpdateDailyActivityCOALESCE(t *testing.T) {
 	mode := sqlcdb.CommuteModeTrain
 
 	created, err := queries.CreateDailyActivity(ctx, &sqlcdb.CreateDailyActivityParams{
+		UserID:       testUserID,
 		ActivityDate: date,
 		Steps:        sql.NullInt32{Int32: 5000, Valid: true},
 		CommuteMode:  sqlcdb.NullCommuteMode{CommuteMode: mode, Valid: true},
@@ -84,8 +88,9 @@ func TestUpdateDailyActivityCOALESCE(t *testing.T) {
 
 	// Update only steps; commute_mode should remain
 	updated, err := queries.UpdateDailyActivity(ctx, &sqlcdb.UpdateDailyActivityParams{
-		ID:    created.ID,
-		Steps: sql.NullInt32{Int32: 10000, Valid: true},
+		ID:     created.ID,
+		UserID: testUserID,
+		Steps:  sql.NullInt32{Int32: 10000, Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("UpdateDailyActivity: %v", err)
@@ -103,17 +108,18 @@ func TestDeleteDailyActivityErrNoRows(t *testing.T) {
 	date := uniqueDate(30000) // distinct range
 
 	created, err := queries.CreateDailyActivity(ctx, &sqlcdb.CreateDailyActivityParams{
+		UserID:       testUserID,
 		ActivityDate: date,
 	})
 	if err != nil {
 		t.Fatalf("CreateDailyActivity: %v", err)
 	}
 
-	if err := queries.DeleteDailyActivity(ctx, created.ID); err != nil {
+	if err := queries.DeleteDailyActivity(ctx, &sqlcdb.DeleteDailyActivityParams{ID: created.ID, UserID: testUserID}); err != nil {
 		t.Fatalf("DeleteDailyActivity: %v", err)
 	}
 
-	_, err = queries.GetDailyActivity(ctx, created.ID)
+	_, err = queries.GetDailyActivity(ctx, &sqlcdb.GetDailyActivityParams{ID: created.ID, UserID: testUserID})
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("expected sql.ErrNoRows after delete, got %v", err)
 	}

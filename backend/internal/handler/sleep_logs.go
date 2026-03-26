@@ -9,6 +9,7 @@ import (
 	"time"
 
 	sqlcdb "health-tracking/backend/db/sqlc"
+	"health-tracking/backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -18,10 +19,10 @@ import (
 // SleepLogStore defines the data access methods used by sleep log handlers.
 type SleepLogStore interface {
 	CreateSleepLog(ctx context.Context, arg *sqlcdb.CreateSleepLogParams) (sqlcdb.SleepLog, error)
-	GetSleepLog(ctx context.Context, id uuid.UUID) (sqlcdb.SleepLog, error)
+	GetSleepLog(ctx context.Context, arg *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error)
 	ListSleepLogs(ctx context.Context, arg *sqlcdb.ListSleepLogsParams) ([]sqlcdb.SleepLog, error)
 	UpdateSleepLog(ctx context.Context, arg *sqlcdb.UpdateSleepLogParams) (sqlcdb.SleepLog, error)
-	DeleteSleepLog(ctx context.Context, id uuid.UUID) error
+	DeleteSleepLog(ctx context.Context, arg *sqlcdb.DeleteSleepLogParams) error
 }
 
 // --- Request / Response types ---
@@ -106,9 +107,11 @@ func CreateSleepLog(store SleepLogStore) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		ctx, cancel := withTimeout(c)
 		defer cancel()
 		log, err := store.CreateSleepLog(ctx, &sqlcdb.CreateSleepLogParams{
+			UserID:  userID,
 			SleepAt: req.SleepAt,
 			WakeAt:  req.WakeAt,
 			Quality: int16PtrToNullInt16(req.Quality),
@@ -164,6 +167,8 @@ func ListSleepLogs(store SleepLogStore) gin.HandlerFunc {
 			params.AbnormalOnly = sql.NullBool{Bool: true, Valid: true}
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
+		params.UserID = userID
 		ctx, cancel := withTimeout(c)
 		defer cancel()
 		logs, err := store.ListSleepLogs(ctx, params)
@@ -212,10 +217,11 @@ func UpdateSleepLog(store SleepLogStore) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		ctx, cancel := withTimeout(c)
 		defer cancel()
 
-		existing, err := store.GetSleepLog(ctx, id)
+		existing, err := store.GetSleepLog(ctx, &sqlcdb.GetSleepLogParams{ID: id, UserID: userID})
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(http.StatusNotFound, errResponse("NOT_FOUND", "sleep log not found"))
@@ -248,6 +254,7 @@ func UpdateSleepLog(store SleepLogStore) gin.HandlerFunc {
 
 		updated, err := store.UpdateSleepLog(ctx, &sqlcdb.UpdateSleepLogParams{
 			ID:      id,
+			UserID:  userID,
 			SleepAt: sleepAtNull,
 			WakeAt:  wakeAtNull,
 			Quality: int16PtrToNullInt16(req.Quality),
@@ -274,9 +281,10 @@ func DeleteSleepLog(store SleepLogStore) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		ctx, cancel := withTimeout(c)
 		defer cancel()
-		if _, err := store.GetSleepLog(ctx, id); err != nil {
+		if _, err := store.GetSleepLog(ctx, &sqlcdb.GetSleepLogParams{ID: id, UserID: userID}); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(http.StatusNotFound, errResponse("NOT_FOUND", "sleep log not found"))
 				return
@@ -285,7 +293,7 @@ func DeleteSleepLog(store SleepLogStore) gin.HandlerFunc {
 			return
 		}
 
-		if err := store.DeleteSleepLog(ctx, id); err != nil {
+		if err := store.DeleteSleepLog(ctx, &sqlcdb.DeleteSleepLogParams{ID: id, UserID: userID}); err != nil {
 			c.JSON(http.StatusInternalServerError, errResponse("INTERNAL_ERROR", "failed to delete sleep log"))
 			return
 		}

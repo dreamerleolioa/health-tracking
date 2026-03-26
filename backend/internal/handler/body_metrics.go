@@ -9,6 +9,7 @@ import (
 	"time"
 
 	sqlcdb "health-tracking/backend/db/sqlc"
+	"health-tracking/backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -26,10 +27,10 @@ var validate = validator.New()
 // Store defines the data access methods used by body metrics handlers.
 type Store interface {
 	CreateBodyMetric(ctx context.Context, arg *sqlcdb.CreateBodyMetricParams) (sqlcdb.BodyMetric, error)
-	GetBodyMetric(ctx context.Context, id uuid.UUID) (sqlcdb.BodyMetric, error)
+	GetBodyMetric(ctx context.Context, arg *sqlcdb.GetBodyMetricParams) (sqlcdb.BodyMetric, error)
 	ListBodyMetrics(ctx context.Context, arg *sqlcdb.ListBodyMetricsParams) ([]sqlcdb.BodyMetric, error)
 	UpdateBodyMetric(ctx context.Context, arg *sqlcdb.UpdateBodyMetricParams) (sqlcdb.BodyMetric, error)
-	DeleteBodyMetric(ctx context.Context, id uuid.UUID) error
+	DeleteBodyMetric(ctx context.Context, arg *sqlcdb.DeleteBodyMetricParams) error
 }
 
 // --- Request / Response types ---
@@ -167,9 +168,11 @@ func CreateBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		ctx, cancel := withTimeout(c)
 		defer cancel()
 		metric, err := store.CreateBodyMetric(ctx, &sqlcdb.CreateBodyMetricParams{
+			UserID:      userID,
 			WeightKg:    float64ToNullString(req.WeightKg),
 			BodyFatPct:  float64ToNullString(req.BodyFatPct),
 			MusclePct:   float64ToNullString(req.MusclePct),
@@ -221,6 +224,8 @@ func ListBodyMetrics(store Store) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
+		params.UserID = userID
 		ctx, cancel := withTimeout(c)
 		defer cancel()
 		metrics, err := store.ListBodyMetrics(ctx, params)
@@ -269,10 +274,12 @@ func UpdateBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		ctx, cancel := withTimeout(c)
 		defer cancel()
 		metric, err := store.UpdateBodyMetric(ctx, &sqlcdb.UpdateBodyMetricParams{
 			ID:          id,
+			UserID:      userID,
 			WeightKg:    float64ToNullString(req.WeightKg),
 			BodyFatPct:  float64ToNullString(req.BodyFatPct),
 			MusclePct:   float64ToNullString(req.MusclePct),
@@ -300,9 +307,10 @@ func DeleteBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		ctx, cancel := withTimeout(c)
 		defer cancel()
-		if _, err := store.GetBodyMetric(ctx, id); err != nil {
+		if _, err := store.GetBodyMetric(ctx, &sqlcdb.GetBodyMetricParams{ID: id, UserID: userID}); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(http.StatusNotFound, errResponse("NOT_FOUND", "body metric not found"))
 				return
@@ -311,7 +319,7 @@ func DeleteBodyMetric(store Store) gin.HandlerFunc {
 			return
 		}
 
-		if err := store.DeleteBodyMetric(ctx, id); err != nil {
+		if err := store.DeleteBodyMetric(ctx, &sqlcdb.DeleteBodyMetricParams{ID: id, UserID: userID}); err != nil {
 			c.JSON(http.StatusInternalServerError, errResponse("INTERNAL_ERROR", "failed to delete body metric"))
 			return
 		}

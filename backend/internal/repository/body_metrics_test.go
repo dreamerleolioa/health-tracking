@@ -11,6 +11,7 @@ import (
 
 	sqlcdb "health-tracking/backend/db/sqlc"
 
+	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go"
@@ -19,7 +20,10 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-var queries *sqlcdb.Queries
+var (
+	queries    *sqlcdb.Queries
+	testUserID uuid.UUID
+)
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -38,6 +42,17 @@ func TestMain(m *testing.M) {
 	}
 
 	queries = sqlcdb.New(db)
+
+	// Create a test user for all repository tests
+	user, err := queries.UpsertUser(ctx, &sqlcdb.UpsertUserParams{
+		GoogleID: "test-google-id",
+		Email:    "test@repository.test",
+	})
+	if err != nil {
+		panic("create test user: " + err.Error())
+	}
+	testUserID = user.ID
+
 	os.Exit(m.Run())
 }
 
@@ -88,6 +103,7 @@ func TestCreateAndGetBodyMetric(t *testing.T) {
 
 	wkg := sql.NullString{String: "72.5", Valid: true}
 	created, err := queries.CreateBodyMetric(ctx, &sqlcdb.CreateBodyMetricParams{
+		UserID:     testUserID,
 		WeightKg:   wkg,
 		RecordedAt: now,
 	})
@@ -101,7 +117,7 @@ func TestCreateAndGetBodyMetric(t *testing.T) {
 		t.Errorf("weight_kg mismatch: %+v", created.WeightKg)
 	}
 
-	fetched, err := queries.GetBodyMetric(ctx, created.ID)
+	fetched, err := queries.GetBodyMetric(ctx, &sqlcdb.GetBodyMetricParams{ID: created.ID, UserID: testUserID})
 	if err != nil {
 		t.Fatalf("GetBodyMetric: %v", err)
 	}
@@ -121,6 +137,7 @@ func TestListBodyMetricsDateRange(t *testing.T) {
 	}
 	for _, d := range dates {
 		if _, err := queries.CreateBodyMetric(ctx, &sqlcdb.CreateBodyMetricParams{
+			UserID:     testUserID,
 			RecordedAt: d,
 		}); err != nil {
 			t.Fatalf("CreateBodyMetric: %v", err)
@@ -131,9 +148,10 @@ func TestListBodyMetricsDateRange(t *testing.T) {
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC)
 	results, err := queries.ListBodyMetrics(ctx, &sqlcdb.ListBodyMetricsParams{
-		From:  sql.NullTime{Time: from, Valid: true},
-		To:    sql.NullTime{Time: to, Valid: true},
-		Limit: 100,
+		UserID: testUserID,
+		From:   sql.NullTime{Time: from, Valid: true},
+		To:     sql.NullTime{Time: to, Valid: true},
+		Limit:  100,
 	})
 	if err != nil {
 		t.Fatalf("ListBodyMetrics: %v", err)
@@ -148,9 +166,10 @@ func TestUpdateBodyMetricCOALESCE(t *testing.T) {
 
 	fat := sql.NullString{String: "18.5", Valid: true}
 	created, err := queries.CreateBodyMetric(ctx, &sqlcdb.CreateBodyMetricParams{
-		WeightKg:    sql.NullString{String: "70.0", Valid: true},
-		BodyFatPct:  fat,
-		RecordedAt:  time.Now().UTC(),
+		UserID:     testUserID,
+		WeightKg:   sql.NullString{String: "70.0", Valid: true},
+		BodyFatPct: fat,
+		RecordedAt: time.Now().UTC(),
 	})
 	if err != nil {
 		t.Fatalf("CreateBodyMetric: %v", err)
@@ -159,6 +178,7 @@ func TestUpdateBodyMetricCOALESCE(t *testing.T) {
 	// Update only weight_kg, body_fat_pct should remain unchanged
 	updated, err := queries.UpdateBodyMetric(ctx, &sqlcdb.UpdateBodyMetricParams{
 		ID:       created.ID,
+		UserID:   testUserID,
 		WeightKg: sql.NullString{String: "75.0", Valid: true},
 	})
 	if err != nil {
@@ -176,17 +196,18 @@ func TestDeleteBodyMetricErrNoRows(t *testing.T) {
 	ctx := context.Background()
 
 	created, err := queries.CreateBodyMetric(ctx, &sqlcdb.CreateBodyMetricParams{
+		UserID:     testUserID,
 		RecordedAt: time.Now().UTC(),
 	})
 	if err != nil {
 		t.Fatalf("CreateBodyMetric: %v", err)
 	}
 
-	if err := queries.DeleteBodyMetric(ctx, created.ID); err != nil {
+	if err := queries.DeleteBodyMetric(ctx, &sqlcdb.DeleteBodyMetricParams{ID: created.ID, UserID: testUserID}); err != nil {
 		t.Fatalf("DeleteBodyMetric: %v", err)
 	}
 
-	_, err = queries.GetBodyMetric(ctx, created.ID)
+	_, err = queries.GetBodyMetric(ctx, &sqlcdb.GetBodyMetricParams{ID: created.ID, UserID: testUserID})
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("expected sql.ErrNoRows after delete, got %v", err)
 	}

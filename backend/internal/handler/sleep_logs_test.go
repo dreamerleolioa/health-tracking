@@ -20,17 +20,17 @@ import (
 
 type mockSleepLogStore struct {
 	createFn func(context.Context, *sqlcdb.CreateSleepLogParams) (sqlcdb.SleepLog, error)
-	getFn    func(context.Context, uuid.UUID) (sqlcdb.SleepLog, error)
+	getFn    func(context.Context, *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error)
 	listFn   func(context.Context, *sqlcdb.ListSleepLogsParams) ([]sqlcdb.SleepLog, error)
 	updateFn func(context.Context, *sqlcdb.UpdateSleepLogParams) (sqlcdb.SleepLog, error)
-	deleteFn func(context.Context, uuid.UUID) error
+	deleteFn func(context.Context, *sqlcdb.DeleteSleepLogParams) error
 }
 
 func (m *mockSleepLogStore) CreateSleepLog(ctx context.Context, arg *sqlcdb.CreateSleepLogParams) (sqlcdb.SleepLog, error) {
 	return m.createFn(ctx, arg)
 }
-func (m *mockSleepLogStore) GetSleepLog(ctx context.Context, id uuid.UUID) (sqlcdb.SleepLog, error) {
-	return m.getFn(ctx, id)
+func (m *mockSleepLogStore) GetSleepLog(ctx context.Context, arg *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
+	return m.getFn(ctx, arg)
 }
 func (m *mockSleepLogStore) ListSleepLogs(ctx context.Context, arg *sqlcdb.ListSleepLogsParams) ([]sqlcdb.SleepLog, error) {
 	return m.listFn(ctx, arg)
@@ -38,8 +38,8 @@ func (m *mockSleepLogStore) ListSleepLogs(ctx context.Context, arg *sqlcdb.ListS
 func (m *mockSleepLogStore) UpdateSleepLog(ctx context.Context, arg *sqlcdb.UpdateSleepLogParams) (sqlcdb.SleepLog, error) {
 	return m.updateFn(ctx, arg)
 }
-func (m *mockSleepLogStore) DeleteSleepLog(ctx context.Context, id uuid.UUID) error {
-	return m.deleteFn(ctx, id)
+func (m *mockSleepLogStore) DeleteSleepLog(ctx context.Context, arg *sqlcdb.DeleteSleepLogParams) error {
+	return m.deleteFn(ctx, arg)
 }
 
 func sampleSleepLog() sqlcdb.SleepLog {
@@ -225,7 +225,7 @@ func TestUpdateSleepLog(t *testing.T) {
 			id:   validID,
 			body: map[string]any{"quality": 4},
 			setupStore: func(ms *mockSleepLogStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.SleepLog, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
 					return sampleSleepLog(), nil
 				}
 				ms.updateFn = func(_ context.Context, _ *sqlcdb.UpdateSleepLogParams) (sqlcdb.SleepLog, error) {
@@ -239,7 +239,7 @@ func TestUpdateSleepLog(t *testing.T) {
 			id:   validID,
 			body: map[string]any{"quality": 4},
 			setupStore: func(ms *mockSleepLogStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.SleepLog, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
 					return sqlcdb.SleepLog{}, sql.ErrNoRows
 				}
 			},
@@ -264,7 +264,7 @@ func TestUpdateSleepLog(t *testing.T) {
 			id:   validID,
 			body: map[string]any{"quality": 4},
 			setupStore: func(ms *mockSleepLogStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.SleepLog, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
 					return sqlcdb.SleepLog{}, errors.New("db error")
 				}
 			},
@@ -275,7 +275,7 @@ func TestUpdateSleepLog(t *testing.T) {
 			id:   validID,
 			body: map[string]any{"wake_at": "2026-01-01T00:00:00Z"},
 			setupStore: func(ms *mockSleepLogStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.SleepLog, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
 					s := sampleSleepLog()
 					// Set sleep_at to a time after the patch wake_at
 					s.SleepAt = time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -319,10 +319,10 @@ func TestDeleteSleepLog(t *testing.T) {
 			name: "success 204",
 			id:   validID,
 			setupStore: func(ms *mockSleepLogStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.SleepLog, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
 					return sampleSleepLog(), nil
 				}
-				ms.deleteFn = func(_ context.Context, _ uuid.UUID) error { return nil }
+				ms.deleteFn = func(_ context.Context, _ *sqlcdb.DeleteSleepLogParams) error { return nil }
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -330,7 +330,7 @@ func TestDeleteSleepLog(t *testing.T) {
 			name: "id not found returns 404",
 			id:   validID,
 			setupStore: func(ms *mockSleepLogStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.SleepLog, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetSleepLogParams) (sqlcdb.SleepLog, error) {
 					return sqlcdb.SleepLog{}, sql.ErrNoRows
 				}
 			},

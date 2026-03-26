@@ -22,17 +22,17 @@ import (
 
 type mockDailyActivityStore struct {
 	createFn func(context.Context, *sqlcdb.CreateDailyActivityParams) (sqlcdb.DailyActivity, error)
-	getFn    func(context.Context, uuid.UUID) (sqlcdb.DailyActivity, error)
+	getFn    func(context.Context, *sqlcdb.GetDailyActivityParams) (sqlcdb.DailyActivity, error)
 	listFn   func(context.Context, *sqlcdb.ListDailyActivitiesParams) ([]sqlcdb.DailyActivity, error)
 	updateFn func(context.Context, *sqlcdb.UpdateDailyActivityParams) (sqlcdb.DailyActivity, error)
-	deleteFn func(context.Context, uuid.UUID) error
+	deleteFn func(context.Context, *sqlcdb.DeleteDailyActivityParams) error
 }
 
 func (m *mockDailyActivityStore) CreateDailyActivity(ctx context.Context, arg *sqlcdb.CreateDailyActivityParams) (sqlcdb.DailyActivity, error) {
 	return m.createFn(ctx, arg)
 }
-func (m *mockDailyActivityStore) GetDailyActivity(ctx context.Context, id uuid.UUID) (sqlcdb.DailyActivity, error) {
-	return m.getFn(ctx, id)
+func (m *mockDailyActivityStore) GetDailyActivity(ctx context.Context, arg *sqlcdb.GetDailyActivityParams) (sqlcdb.DailyActivity, error) {
+	return m.getFn(ctx, arg)
 }
 func (m *mockDailyActivityStore) ListDailyActivities(ctx context.Context, arg *sqlcdb.ListDailyActivitiesParams) ([]sqlcdb.DailyActivity, error) {
 	return m.listFn(ctx, arg)
@@ -40,8 +40,8 @@ func (m *mockDailyActivityStore) ListDailyActivities(ctx context.Context, arg *s
 func (m *mockDailyActivityStore) UpdateDailyActivity(ctx context.Context, arg *sqlcdb.UpdateDailyActivityParams) (sqlcdb.DailyActivity, error) {
 	return m.updateFn(ctx, arg)
 }
-func (m *mockDailyActivityStore) DeleteDailyActivity(ctx context.Context, id uuid.UUID) error {
-	return m.deleteFn(ctx, id)
+func (m *mockDailyActivityStore) DeleteDailyActivity(ctx context.Context, arg *sqlcdb.DeleteDailyActivityParams) error {
+	return m.deleteFn(ctx, arg)
 }
 
 func sampleActivity() sqlcdb.DailyActivity {
@@ -282,10 +282,10 @@ func TestDeleteDailyActivity(t *testing.T) {
 			name: "success 204",
 			id:   validID,
 			setupStore: func(ms *mockDailyActivityStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.DailyActivity, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetDailyActivityParams) (sqlcdb.DailyActivity, error) {
 					return sampleActivity(), nil
 				}
-				ms.deleteFn = func(_ context.Context, _ uuid.UUID) error { return nil }
+				ms.deleteFn = func(_ context.Context, _ *sqlcdb.DeleteDailyActivityParams) error { return nil }
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -293,7 +293,7 @@ func TestDeleteDailyActivity(t *testing.T) {
 			name: "id not found returns 404",
 			id:   validID,
 			setupStore: func(ms *mockDailyActivityStore) {
-				ms.getFn = func(_ context.Context, _ uuid.UUID) (sqlcdb.DailyActivity, error) {
+				ms.getFn = func(_ context.Context, _ *sqlcdb.GetDailyActivityParams) (sqlcdb.DailyActivity, error) {
 					return sqlcdb.DailyActivity{}, sql.ErrNoRows
 				}
 			},

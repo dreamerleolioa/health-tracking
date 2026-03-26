@@ -9,6 +9,7 @@ import (
 	"time"
 
 	sqlcdb "health-tracking/backend/db/sqlc"
+	"health-tracking/backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -19,10 +20,10 @@ import (
 // DailyActivityStore defines the data access methods used by daily activity handlers.
 type DailyActivityStore interface {
 	CreateDailyActivity(ctx context.Context, arg *sqlcdb.CreateDailyActivityParams) (sqlcdb.DailyActivity, error)
-	GetDailyActivity(ctx context.Context, id uuid.UUID) (sqlcdb.DailyActivity, error)
+	GetDailyActivity(ctx context.Context, arg *sqlcdb.GetDailyActivityParams) (sqlcdb.DailyActivity, error)
 	ListDailyActivities(ctx context.Context, arg *sqlcdb.ListDailyActivitiesParams) ([]sqlcdb.DailyActivity, error)
 	UpdateDailyActivity(ctx context.Context, arg *sqlcdb.UpdateDailyActivityParams) (sqlcdb.DailyActivity, error)
-	DeleteDailyActivity(ctx context.Context, id uuid.UUID) error
+	DeleteDailyActivity(ctx context.Context, arg *sqlcdb.DeleteDailyActivityParams) error
 }
 
 // --- Request / Response types ---
@@ -119,7 +120,9 @@ func CreateDailyActivity(store DailyActivityStore) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		activity, err := store.CreateDailyActivity(c.Request.Context(), &sqlcdb.CreateDailyActivityParams{
+			UserID:         userID,
 			ActivityDate:   date,
 			Steps:          int32PtrToNullInt32(req.Steps),
 			CommuteMode:    commuteModeToNull(req.CommuteMode),
@@ -176,6 +179,8 @@ func ListDailyActivities(store DailyActivityStore) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
+		params.UserID = userID
 		activities, err := store.ListDailyActivities(c.Request.Context(), params)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, errResponse("INTERNAL_ERROR", "failed to list daily activities"))
@@ -222,8 +227,10 @@ func UpdateDailyActivity(store DailyActivityStore) gin.HandlerFunc {
 			return
 		}
 
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
 		updated, err := store.UpdateDailyActivity(c.Request.Context(), &sqlcdb.UpdateDailyActivityParams{
 			ID:             id,
+			UserID:         userID,
 			Steps:          int32PtrToNullInt32(req.Steps),
 			CommuteMode:    commuteModeToNull(req.CommuteMode),
 			CommuteMinutes: int32PtrToNullInt32(req.CommuteMinutes),
@@ -250,7 +257,8 @@ func DeleteDailyActivity(store DailyActivityStore) gin.HandlerFunc {
 			return
 		}
 
-		if _, err := store.GetDailyActivity(c.Request.Context(), id); err != nil {
+		userID := c.MustGet(middleware.UserIDKey).(uuid.UUID)
+		if _, err := store.GetDailyActivity(c.Request.Context(), &sqlcdb.GetDailyActivityParams{ID: id, UserID: userID}); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(http.StatusNotFound, errResponse("NOT_FOUND", "daily activity not found"))
 				return
@@ -259,7 +267,7 @@ func DeleteDailyActivity(store DailyActivityStore) gin.HandlerFunc {
 			return
 		}
 
-		if err := store.DeleteDailyActivity(c.Request.Context(), id); err != nil {
+		if err := store.DeleteDailyActivity(c.Request.Context(), &sqlcdb.DeleteDailyActivityParams{ID: id, UserID: userID}); err != nil {
 			c.JSON(http.StatusInternalServerError, errResponse("INTERNAL_ERROR", "failed to delete daily activity"))
 			return
 		}

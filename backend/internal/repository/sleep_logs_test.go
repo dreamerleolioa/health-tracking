@@ -32,6 +32,7 @@ func TestCreateAndGetSleepLog(t *testing.T) {
 	wakeAt := now
 
 	created, err := queries.CreateSleepLog(ctx, &sqlcdb.CreateSleepLogParams{
+		UserID:  testUserID,
 		SleepAt: sleepAt,
 		WakeAt:  wakeAt,
 	})
@@ -42,7 +43,7 @@ func TestCreateAndGetSleepLog(t *testing.T) {
 		t.Fatal("expected non-empty ID")
 	}
 
-	fetched, err := queries.GetSleepLog(ctx, created.ID)
+	fetched, err := queries.GetSleepLog(ctx, &sqlcdb.GetSleepLogParams{ID: created.ID, UserID: testUserID})
 	if err != nil {
 		t.Fatalf("GetSleepLog: %v", err)
 	}
@@ -59,6 +60,7 @@ func TestSleepLogDurationMinComputed(t *testing.T) {
 	wakeAt := time.Date(2026, 3, 24, 7, 0, 0, 0, loc).UTC()
 
 	created, err := queries.CreateSleepLog(ctx, &sqlcdb.CreateSleepLogParams{
+		UserID:  testUserID,
 		SleepAt: sleepAt,
 		WakeAt:  wakeAt,
 	})
@@ -116,6 +118,7 @@ func TestAbnormalWakeTrigger(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sleepAt := tt.wakeAt.Add(-6 * time.Hour)
 			created, err := queries.CreateSleepLog(ctx, &sqlcdb.CreateSleepLogParams{
+				UserID:  testUserID,
 				SleepAt: sleepAt,
 				WakeAt:  tt.wakeAt,
 			})
@@ -137,6 +140,7 @@ func TestAbnormalWakeUpdatedByTriggerOnUpdate(t *testing.T) {
 	normalWake := time.Date(2026, 3, 25, 7, 0, 0, 0, loc).UTC()
 	sleepAt := normalWake.Add(-8 * time.Hour)
 	created, err := queries.CreateSleepLog(ctx, &sqlcdb.CreateSleepLogParams{
+		UserID:  testUserID,
 		SleepAt: sleepAt,
 		WakeAt:  normalWake,
 	})
@@ -151,6 +155,7 @@ func TestAbnormalWakeUpdatedByTriggerOnUpdate(t *testing.T) {
 	abnormalWake := time.Date(2026, 3, 25, 3, 30, 0, 0, loc).UTC()
 	updated, err := queries.UpdateSleepLog(ctx, &sqlcdb.UpdateSleepLogParams{
 		ID:     created.ID,
+		UserID: testUserID,
 		WakeAt: sql.NullTime{Time: abnormalWake, Valid: true},
 	})
 	if err != nil {
@@ -166,6 +171,7 @@ func TestDeleteSleepLogErrNoRows(t *testing.T) {
 	now := time.Now().UTC()
 
 	created, err := queries.CreateSleepLog(ctx, &sqlcdb.CreateSleepLogParams{
+		UserID:  testUserID,
 		SleepAt: now.Add(-8 * time.Hour),
 		WakeAt:  now,
 	})
@@ -173,11 +179,11 @@ func TestDeleteSleepLogErrNoRows(t *testing.T) {
 		t.Fatalf("CreateSleepLog: %v", err)
 	}
 
-	if err := queries.DeleteSleepLog(ctx, created.ID); err != nil {
+	if err := queries.DeleteSleepLog(ctx, &sqlcdb.DeleteSleepLogParams{ID: created.ID, UserID: testUserID}); err != nil {
 		t.Fatalf("DeleteSleepLog: %v", err)
 	}
 
-	_, err = queries.GetSleepLog(ctx, created.ID)
+	_, err = queries.GetSleepLog(ctx, &sqlcdb.GetSleepLogParams{ID: created.ID, UserID: testUserID})
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("expected sql.ErrNoRows after delete, got %v", err)
 	}
