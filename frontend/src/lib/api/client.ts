@@ -18,6 +18,7 @@ export class ApiException extends Error {
 function makeRequest(fetchFn: typeof fetch) {
   return async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetchFn(`${PUBLIC_API_BASE_URL}${path}`, {
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       ...init
     });

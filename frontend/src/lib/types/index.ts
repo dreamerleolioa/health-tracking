@@ -68,6 +68,16 @@ export interface MapleSnapshot {
   note: string | null;
 }
 
+// User
+export interface User {
+  id: string;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  last_login_at: string;
+}
+
 // API response wrappers
 export interface ListResponse<T> {
   data: T[];
