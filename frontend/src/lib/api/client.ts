@@ -15,6 +15,24 @@ export class ApiException extends Error {
   }
 }
 
+let refreshPromise: Promise<void> | null = null;
+
+function refreshToken(fetchFn: typeof fetch): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = fetchFn(`${PUBLIC_API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('refresh failed');
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 function makeRequest(fetchFn: typeof fetch) {
   return async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetchFn(`${PUBLIC_API_BASE_URL}${path}`, {
@@ -24,23 +42,23 @@ function makeRequest(fetchFn: typeof fetch) {
     });
 
     if (res.status === 401 && path !== '/auth/refresh') {
-      const refreshRes = await fetchFn(`${PUBLIC_API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (refreshRes.ok) {
-        const retryRes = await fetchFn(`${PUBLIC_API_BASE_URL}${path}`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          ...init
-        });
-        if (retryRes.ok) {
-          if (retryRes.status === 204) return undefined as T;
-          return retryRes.json();
-        }
-        const retryBody = await retryRes.json();
-        throw new ApiException(retryRes.status, retryBody.error);
+      try {
+        await refreshToken(fetchFn);
+      } catch {
+        const body = await res.json();
+        throw new ApiException(res.status, body.error);
       }
+      const retryRes = await fetchFn(`${PUBLIC_API_BASE_URL}${path}`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        ...init
+      });
+      if (retryRes.ok) {
+        if (retryRes.status === 204) return undefined as T;
+        return retryRes.json();
+      }
+      const retryBody = await retryRes.json();
+      throw new ApiException(retryRes.status, retryBody.error);
     }
 
     if (!res.ok) {
