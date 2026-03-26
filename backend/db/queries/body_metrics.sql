@@ -1,18 +1,19 @@
 -- name: CreateBodyMetric :one
 INSERT INTO body_metrics (
-    weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note
+    user_id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 
 -- name: GetBodyMetric :one
-SELECT * FROM body_metrics WHERE id = $1;
+SELECT * FROM body_metrics WHERE id = $1 AND user_id = $2;
 
 -- name: ListBodyMetrics :many
 SELECT * FROM body_metrics
 WHERE
-    (sqlc.narg('from')::DATE IS NULL OR recorded_at::DATE >= sqlc.narg('from')::DATE)
+    user_id = sqlc.arg('user_id')
+    AND (sqlc.narg('from')::DATE IS NULL OR recorded_at::DATE >= sqlc.narg('from')::DATE)
     AND (sqlc.narg('to')::DATE IS NULL OR recorded_at::DATE <= sqlc.narg('to')::DATE)
 ORDER BY recorded_at DESC
 LIMIT sqlc.arg('limit');
@@ -26,8 +27,8 @@ SET
     visceral_fat = COALESCE(sqlc.narg('visceral_fat'), visceral_fat),
     note         = COALESCE(sqlc.narg('note'), note),
     updated_at   = NOW()
-WHERE id = sqlc.arg('id')
+WHERE id = sqlc.arg('id') AND user_id = sqlc.arg('user_id')
 RETURNING *;
 
 -- name: DeleteBodyMetric :exec
-DELETE FROM body_metrics WHERE id = $1;
+DELETE FROM body_metrics WHERE id = $1 AND user_id = $2;

@@ -15,14 +15,15 @@ import (
 
 const createSleepLog = `-- name: CreateSleepLog :one
 INSERT INTO sleep_logs (
-    sleep_at, wake_at, quality, note
+    user_id, sleep_at, wake_at, quality, note
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 )
-RETURNING id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at
+RETURNING id, user_id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at
 `
 
 type CreateSleepLogParams struct {
+	UserID  uuid.UUID      `json:"user_id"`
 	SleepAt time.Time      `json:"sleep_at"`
 	WakeAt  time.Time      `json:"wake_at"`
 	Quality sql.NullInt16  `json:"quality"`
@@ -31,6 +32,7 @@ type CreateSleepLogParams struct {
 
 func (q *Queries) CreateSleepLog(ctx context.Context, arg *CreateSleepLogParams) (SleepLog, error) {
 	row := q.db.QueryRowContext(ctx, createSleepLog,
+		arg.UserID,
 		arg.SleepAt,
 		arg.WakeAt,
 		arg.Quality,
@@ -39,6 +41,7 @@ func (q *Queries) CreateSleepLog(ctx context.Context, arg *CreateSleepLogParams)
 	var i SleepLog
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.SleepAt,
 		&i.WakeAt,
 		&i.DurationMin,
@@ -52,23 +55,34 @@ func (q *Queries) CreateSleepLog(ctx context.Context, arg *CreateSleepLogParams)
 }
 
 const deleteSleepLog = `-- name: DeleteSleepLog :exec
-DELETE FROM sleep_logs WHERE id = $1
+DELETE FROM sleep_logs WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteSleepLog(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteSleepLog, id)
+type DeleteSleepLogParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteSleepLog(ctx context.Context, arg *DeleteSleepLogParams) error {
+	_, err := q.db.ExecContext(ctx, deleteSleepLog, arg.ID, arg.UserID)
 	return err
 }
 
 const getSleepLog = `-- name: GetSleepLog :one
-SELECT id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at FROM sleep_logs WHERE id = $1
+SELECT id, user_id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at FROM sleep_logs WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) GetSleepLog(ctx context.Context, id uuid.UUID) (SleepLog, error) {
-	row := q.db.QueryRowContext(ctx, getSleepLog, id)
+type GetSleepLogParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetSleepLog(ctx context.Context, arg *GetSleepLogParams) (SleepLog, error) {
+	row := q.db.QueryRowContext(ctx, getSleepLog, arg.ID, arg.UserID)
 	var i SleepLog
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.SleepAt,
 		&i.WakeAt,
 		&i.DurationMin,
@@ -82,17 +96,18 @@ func (q *Queries) GetSleepLog(ctx context.Context, id uuid.UUID) (SleepLog, erro
 }
 
 const listSleepLogs = `-- name: ListSleepLogs :many
-SELECT id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at FROM sleep_logs
+SELECT id, user_id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at FROM sleep_logs
 WHERE
-    -- Filter by wake_at Taipei date (user thinks of sleep by the morning they woke up)
-    ($1::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE >= $1::DATE)
-    AND ($2::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE <= $2::DATE)
-    AND ($3::BOOLEAN IS NULL OR $3 = FALSE OR abnormal_wake = TRUE)
+    user_id = $1
+    AND ($2::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE >= $2::DATE)
+    AND ($3::DATE IS NULL OR (wake_at AT TIME ZONE 'Asia/Taipei')::DATE <= $3::DATE)
+    AND ($4::BOOLEAN IS NULL OR abnormal_wake = $4)
 ORDER BY wake_at DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListSleepLogsParams struct {
+	UserID       uuid.UUID    `json:"user_id"`
 	From         sql.NullTime `json:"from"`
 	To           sql.NullTime `json:"to"`
 	AbnormalOnly sql.NullBool `json:"abnormal_only"`
@@ -101,6 +116,7 @@ type ListSleepLogsParams struct {
 
 func (q *Queries) ListSleepLogs(ctx context.Context, arg *ListSleepLogsParams) ([]SleepLog, error) {
 	rows, err := q.db.QueryContext(ctx, listSleepLogs,
+		arg.UserID,
 		arg.From,
 		arg.To,
 		arg.AbnormalOnly,
@@ -115,6 +131,7 @@ func (q *Queries) ListSleepLogs(ctx context.Context, arg *ListSleepLogsParams) (
 		var i SleepLog
 		if err := rows.Scan(
 			&i.ID,
+			&i.UserID,
 			&i.SleepAt,
 			&i.WakeAt,
 			&i.DurationMin,
@@ -145,8 +162,8 @@ SET
     quality    = COALESCE($3, quality),
     note       = COALESCE($4, note),
     updated_at = NOW()
-WHERE id = $5
-RETURNING id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at
+WHERE id = $5 AND user_id = $6
+RETURNING id, user_id, sleep_at, wake_at, duration_min, abnormal_wake, quality, note, created_at, updated_at
 `
 
 type UpdateSleepLogParams struct {
@@ -155,6 +172,7 @@ type UpdateSleepLogParams struct {
 	Quality sql.NullInt16  `json:"quality"`
 	Note    sql.NullString `json:"note"`
 	ID      uuid.UUID      `json:"id"`
+	UserID  uuid.UUID      `json:"user_id"`
 }
 
 func (q *Queries) UpdateSleepLog(ctx context.Context, arg *UpdateSleepLogParams) (SleepLog, error) {
@@ -164,10 +182,12 @@ func (q *Queries) UpdateSleepLog(ctx context.Context, arg *UpdateSleepLogParams)
 		arg.Quality,
 		arg.Note,
 		arg.ID,
+		arg.UserID,
 	)
 	var i SleepLog
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.SleepAt,
 		&i.WakeAt,
 		&i.DurationMin,

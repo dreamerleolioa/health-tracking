@@ -15,14 +15,15 @@ import (
 
 const createDailyActivity = `-- name: CreateDailyActivity :one
 INSERT INTO daily_activities (
-    activity_date, steps, commute_mode, commute_minutes, note
+    user_id, activity_date, steps, commute_mode, commute_minutes, note
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
-RETURNING id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at
+RETURNING id, user_id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at
 `
 
 type CreateDailyActivityParams struct {
+	UserID         uuid.UUID       `json:"user_id"`
 	ActivityDate   time.Time       `json:"activity_date"`
 	Steps          sql.NullInt32   `json:"steps"`
 	CommuteMode    NullCommuteMode `json:"commute_mode"`
@@ -32,6 +33,7 @@ type CreateDailyActivityParams struct {
 
 func (q *Queries) CreateDailyActivity(ctx context.Context, arg *CreateDailyActivityParams) (DailyActivity, error) {
 	row := q.db.QueryRowContext(ctx, createDailyActivity,
+		arg.UserID,
 		arg.ActivityDate,
 		arg.Steps,
 		arg.CommuteMode,
@@ -41,6 +43,7 @@ func (q *Queries) CreateDailyActivity(ctx context.Context, arg *CreateDailyActiv
 	var i DailyActivity
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.ActivityDate,
 		&i.Steps,
 		&i.CommuteMode,
@@ -53,43 +56,34 @@ func (q *Queries) CreateDailyActivity(ctx context.Context, arg *CreateDailyActiv
 }
 
 const deleteDailyActivity = `-- name: DeleteDailyActivity :exec
-DELETE FROM daily_activities WHERE id = $1
+DELETE FROM daily_activities WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteDailyActivity(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteDailyActivity, id)
+type DeleteDailyActivityParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteDailyActivity(ctx context.Context, arg *DeleteDailyActivityParams) error {
+	_, err := q.db.ExecContext(ctx, deleteDailyActivity, arg.ID, arg.UserID)
 	return err
 }
 
 const getDailyActivity = `-- name: GetDailyActivity :one
-SELECT id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at FROM daily_activities WHERE id = $1
+SELECT id, user_id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at FROM daily_activities WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) GetDailyActivity(ctx context.Context, id uuid.UUID) (DailyActivity, error) {
-	row := q.db.QueryRowContext(ctx, getDailyActivity, id)
-	var i DailyActivity
-	err := row.Scan(
-		&i.ID,
-		&i.ActivityDate,
-		&i.Steps,
-		&i.CommuteMode,
-		&i.CommuteMinutes,
-		&i.Note,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+type GetDailyActivityParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
-const getDailyActivityByDate = `-- name: GetDailyActivityByDate :one
-SELECT id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at FROM daily_activities WHERE activity_date = $1
-`
-
-func (q *Queries) GetDailyActivityByDate(ctx context.Context, activityDate time.Time) (DailyActivity, error) {
-	row := q.db.QueryRowContext(ctx, getDailyActivityByDate, activityDate)
+func (q *Queries) GetDailyActivity(ctx context.Context, arg *GetDailyActivityParams) (DailyActivity, error) {
+	row := q.db.QueryRowContext(ctx, getDailyActivity, arg.ID, arg.UserID)
 	var i DailyActivity
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.ActivityDate,
 		&i.Steps,
 		&i.CommuteMode,
@@ -102,22 +96,29 @@ func (q *Queries) GetDailyActivityByDate(ctx context.Context, activityDate time.
 }
 
 const listDailyActivities = `-- name: ListDailyActivities :many
-SELECT id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at FROM daily_activities
+SELECT id, user_id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at FROM daily_activities
 WHERE
-    ($1::DATE IS NULL OR activity_date >= $1::DATE)
-    AND ($2::DATE IS NULL OR activity_date <= $2::DATE)
+    user_id = $1
+    AND ($2::DATE IS NULL OR activity_date >= $2::DATE)
+    AND ($3::DATE IS NULL OR activity_date <= $3::DATE)
 ORDER BY activity_date DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListDailyActivitiesParams struct {
-	From  sql.NullTime `json:"from"`
-	To    sql.NullTime `json:"to"`
-	Limit int32        `json:"limit"`
+	UserID uuid.UUID    `json:"user_id"`
+	From   sql.NullTime `json:"from"`
+	To     sql.NullTime `json:"to"`
+	Limit  int32        `json:"limit"`
 }
 
 func (q *Queries) ListDailyActivities(ctx context.Context, arg *ListDailyActivitiesParams) ([]DailyActivity, error) {
-	rows, err := q.db.QueryContext(ctx, listDailyActivities, arg.From, arg.To, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listDailyActivities,
+		arg.UserID,
+		arg.From,
+		arg.To,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +128,7 @@ func (q *Queries) ListDailyActivities(ctx context.Context, arg *ListDailyActivit
 		var i DailyActivity
 		if err := rows.Scan(
 			&i.ID,
+			&i.UserID,
 			&i.ActivityDate,
 			&i.Steps,
 			&i.CommuteMode,
@@ -156,8 +158,8 @@ SET
     commute_minutes = COALESCE($3, commute_minutes),
     note            = COALESCE($4, note),
     updated_at      = NOW()
-WHERE id = $5
-RETURNING id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at
+WHERE id = $5 AND user_id = $6
+RETURNING id, user_id, activity_date, steps, commute_mode, commute_minutes, note, created_at, updated_at
 `
 
 type UpdateDailyActivityParams struct {
@@ -166,6 +168,7 @@ type UpdateDailyActivityParams struct {
 	CommuteMinutes sql.NullInt32   `json:"commute_minutes"`
 	Note           sql.NullString  `json:"note"`
 	ID             uuid.UUID       `json:"id"`
+	UserID         uuid.UUID       `json:"user_id"`
 }
 
 func (q *Queries) UpdateDailyActivity(ctx context.Context, arg *UpdateDailyActivityParams) (DailyActivity, error) {
@@ -175,10 +178,12 @@ func (q *Queries) UpdateDailyActivity(ctx context.Context, arg *UpdateDailyActiv
 		arg.CommuteMinutes,
 		arg.Note,
 		arg.ID,
+		arg.UserID,
 	)
 	var i DailyActivity
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.ActivityDate,
 		&i.Steps,
 		&i.CommuteMode,

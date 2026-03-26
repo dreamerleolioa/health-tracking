@@ -59,6 +59,7 @@ func (ns NullCommuteMode) Value() (driver.Value, error) {
 
 type BodyMetric struct {
 	ID          uuid.UUID      `json:"id"`
+	UserID      uuid.UUID      `json:"user_id"`
 	WeightKg    sql.NullString `json:"weight_kg"`
 	BodyFatPct  sql.NullString `json:"body_fat_pct"`
 	MusclePct   sql.NullString `json:"muscle_pct"`
@@ -71,6 +72,7 @@ type BodyMetric struct {
 
 type DailyActivity struct {
 	ID             uuid.UUID       `json:"id"`
+	UserID         uuid.UUID       `json:"user_id"`
 	ActivityDate   time.Time       `json:"activity_date"`
 	Steps          sql.NullInt32   `json:"steps"`
 	CommuteMode    NullCommuteMode `json:"commute_mode"`
@@ -80,8 +82,18 @@ type DailyActivity struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
+type RefreshToken struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	TokenHash string    `json:"token_hash"`
+	ExpiresAt time.Time `json:"expires_at"`
+	Revoked   bool      `json:"revoked"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type SleepLog struct {
 	ID           uuid.UUID      `json:"id"`
+	UserID       uuid.UUID      `json:"user_id"`
 	SleepAt      time.Time      `json:"sleep_at"`
 	WakeAt       time.Time      `json:"wake_at"`
 	DurationMin  sql.NullInt32  `json:"duration_min"`
@@ -90,4 +102,14 @@ type SleepLog struct {
 	Note         sql.NullString `json:"note"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
+type User struct {
+	ID          uuid.UUID      `json:"id"`
+	GoogleID    string         `json:"google_id"`
+	Email       string         `json:"email"`
+	DisplayName sql.NullString `json:"display_name"`
+	AvatarUrl   sql.NullString `json:"avatar_url"`
+	CreatedAt   time.Time      `json:"created_at"`
+	LastLoginAt time.Time      `json:"last_login_at"`
 }

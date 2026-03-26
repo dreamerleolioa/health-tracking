@@ -15,14 +15,15 @@ import (
 
 const createBodyMetric = `-- name: CreateBodyMetric :one
 INSERT INTO body_metrics (
-    weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note
+    user_id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at
+RETURNING id, user_id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at
 `
 
 type CreateBodyMetricParams struct {
+	UserID      uuid.UUID      `json:"user_id"`
 	WeightKg    sql.NullString `json:"weight_kg"`
 	BodyFatPct  sql.NullString `json:"body_fat_pct"`
 	MusclePct   sql.NullString `json:"muscle_pct"`
@@ -33,6 +34,7 @@ type CreateBodyMetricParams struct {
 
 func (q *Queries) CreateBodyMetric(ctx context.Context, arg *CreateBodyMetricParams) (BodyMetric, error) {
 	row := q.db.QueryRowContext(ctx, createBodyMetric,
+		arg.UserID,
 		arg.WeightKg,
 		arg.BodyFatPct,
 		arg.MusclePct,
@@ -43,6 +45,7 @@ func (q *Queries) CreateBodyMetric(ctx context.Context, arg *CreateBodyMetricPar
 	var i BodyMetric
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.WeightKg,
 		&i.BodyFatPct,
 		&i.MusclePct,
@@ -56,23 +59,34 @@ func (q *Queries) CreateBodyMetric(ctx context.Context, arg *CreateBodyMetricPar
 }
 
 const deleteBodyMetric = `-- name: DeleteBodyMetric :exec
-DELETE FROM body_metrics WHERE id = $1
+DELETE FROM body_metrics WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) DeleteBodyMetric(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteBodyMetric, id)
+type DeleteBodyMetricParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteBodyMetric(ctx context.Context, arg *DeleteBodyMetricParams) error {
+	_, err := q.db.ExecContext(ctx, deleteBodyMetric, arg.ID, arg.UserID)
 	return err
 }
 
 const getBodyMetric = `-- name: GetBodyMetric :one
-SELECT id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at FROM body_metrics WHERE id = $1
+SELECT id, user_id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at FROM body_metrics WHERE id = $1 AND user_id = $2
 `
 
-func (q *Queries) GetBodyMetric(ctx context.Context, id uuid.UUID) (BodyMetric, error) {
-	row := q.db.QueryRowContext(ctx, getBodyMetric, id)
+type GetBodyMetricParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetBodyMetric(ctx context.Context, arg *GetBodyMetricParams) (BodyMetric, error) {
+	row := q.db.QueryRowContext(ctx, getBodyMetric, arg.ID, arg.UserID)
 	var i BodyMetric
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.WeightKg,
 		&i.BodyFatPct,
 		&i.MusclePct,
@@ -86,22 +100,29 @@ func (q *Queries) GetBodyMetric(ctx context.Context, id uuid.UUID) (BodyMetric, 
 }
 
 const listBodyMetrics = `-- name: ListBodyMetrics :many
-SELECT id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at FROM body_metrics
+SELECT id, user_id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at FROM body_metrics
 WHERE
-    ($1::DATE IS NULL OR recorded_at::DATE >= $1::DATE)
-    AND ($2::DATE IS NULL OR recorded_at::DATE <= $2::DATE)
+    user_id = $1
+    AND ($2::DATE IS NULL OR recorded_at::DATE >= $2::DATE)
+    AND ($3::DATE IS NULL OR recorded_at::DATE <= $3::DATE)
 ORDER BY recorded_at DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListBodyMetricsParams struct {
-	From  sql.NullTime `json:"from"`
-	To    sql.NullTime `json:"to"`
-	Limit int32        `json:"limit"`
+	UserID uuid.UUID    `json:"user_id"`
+	From   sql.NullTime `json:"from"`
+	To     sql.NullTime `json:"to"`
+	Limit  int32        `json:"limit"`
 }
 
 func (q *Queries) ListBodyMetrics(ctx context.Context, arg *ListBodyMetricsParams) ([]BodyMetric, error) {
-	rows, err := q.db.QueryContext(ctx, listBodyMetrics, arg.From, arg.To, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listBodyMetrics,
+		arg.UserID,
+		arg.From,
+		arg.To,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +132,7 @@ func (q *Queries) ListBodyMetrics(ctx context.Context, arg *ListBodyMetricsParam
 		var i BodyMetric
 		if err := rows.Scan(
 			&i.ID,
+			&i.UserID,
 			&i.WeightKg,
 			&i.BodyFatPct,
 			&i.MusclePct,
@@ -142,8 +164,8 @@ SET
     visceral_fat = COALESCE($4, visceral_fat),
     note         = COALESCE($5, note),
     updated_at   = NOW()
-WHERE id = $6
-RETURNING id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at
+WHERE id = $6 AND user_id = $7
+RETURNING id, user_id, weight_kg, body_fat_pct, muscle_pct, visceral_fat, recorded_at, note, created_at, updated_at
 `
 
 type UpdateBodyMetricParams struct {
@@ -153,6 +175,7 @@ type UpdateBodyMetricParams struct {
 	VisceralFat sql.NullInt16  `json:"visceral_fat"`
 	Note        sql.NullString `json:"note"`
 	ID          uuid.UUID      `json:"id"`
+	UserID      uuid.UUID      `json:"user_id"`
 }
 
 func (q *Queries) UpdateBodyMetric(ctx context.Context, arg *UpdateBodyMetricParams) (BodyMetric, error) {
@@ -163,10 +186,12 @@ func (q *Queries) UpdateBodyMetric(ctx context.Context, arg *UpdateBodyMetricPar
 		arg.VisceralFat,
 		arg.Note,
 		arg.ID,
+		arg.UserID,
 	)
 	var i BodyMetric
 	err := row.Scan(
 		&i.ID,
+		&i.UserID,
 		&i.WeightKg,
 		&i.BodyFatPct,
 		&i.MusclePct,
