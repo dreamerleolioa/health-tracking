@@ -2,13 +2,14 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import favicon from '$lib/assets/favicon.svg';
 	import '../app.css';
 	import { authStore, isLoading } from '$lib/stores/auth';
 
 	let { children } = $props();
 
-	const PUBLIC_ROUTES = ['/login', '/auth/callback'];
+	const PUBLIC_ROUTES = [`${base}/login`, `${base}/auth/callback`];
 
 	const isPublicRoute = $derived(
 		PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))
@@ -22,7 +23,7 @@
 		const currentPath = $page.url.pathname;
 		const isPublic = PUBLIC_ROUTES.some((r) => currentPath.startsWith(r));
 		if (!$isLoading && !$authStore && !isPublic) {
-			goto('/login');
+			goto(`${base}/login`);
 		}
 	});
 
@@ -34,7 +35,7 @@
 
 	async function handleLogout() {
 		await authStore.logout();
-		goto('/login');
+		goto(`${base}/login`);
 	}
 </script>
 
