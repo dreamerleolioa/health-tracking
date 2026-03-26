@@ -672,15 +672,16 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 > 4. `DROP CONSTRAINT UNIQUE(activity_date)`
 > 5. `ADD CONSTRAINT UNIQUE(user_id, activity_date)`
 
-- [ ] Google OAuth 2.0 登入（後端 `/v1/auth/*` 端點）
-- [ ] JWT 簽發 / Refresh Token 機制
-- [ ] SvelteKit 登入頁與 Auth 狀態管理（`+layout.svelte` guard）
-- [ ] 所有資料表加入 `user_id` 外鍵並套用 migration（含上方 `daily_activities` 安全遷移序列）
-- [ ] Auth 流程測試（OAuth callback、token 刷新、登出、401 防護、`user_id` 資料隔離）
-- [ ] CI/CD（GitHub Actions → Railway / Fly.io）；Pipeline 加入 `go test ./... -coverprofile` 覆蓋率門檻 ≥ 80%
-- [ ] SvelteKit PWA 離線緩存
-- [ ] Rate Limiting
-- [ ] 正式域名 + HTTPS
+- [x] Google OAuth 2.0 登入（後端 `/v1/auth/*` 端點）
+- [x] JWT 簽發 / Refresh Token 機制
+- [x] SvelteKit 登入頁與 Auth 狀態管理（`+layout.svelte` guard）
+- [x] 所有資料表加入 `user_id` 外鍵並套用 migration（含上方 `daily_activities` 安全遷移序列）
+- [x] Auth 流程測試（OAuth callback、token 刷新、登出、401 防護、`user_id` 資料隔離）
+- [x] CI/CD（GitHub Actions → Railway / Fly.io）；Pipeline 加入 `go test ./... -coverprofile` 覆蓋率門檻 ≥ 80%
+- [x] 補全 handler 層 table-driven 測試（含 400 驗證錯誤、404 資源不存在、401 未授權案例），使後端覆蓋率從目前 51.5% 達到 ≥ 80%（參考 §4.3 測試覆蓋範圍要求）
+- [x] SvelteKit PWA 離線緩存
+- [x] Rate Limiting
+- [x] 正式域名 + HTTPS
 
 ### Milestone 5 — 進階分析（未來規劃）
 

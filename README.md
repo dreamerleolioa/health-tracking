@@ -48,7 +48,7 @@
 - 同時整合生理數據與生活因子
 - 預設以 Asia/Taipei 時區理解日常生活脈絡
 - 使用圖表與事件標記協助發現關聯
-- 規劃以登入機制保護個人隱私與資料安全
+- 以 Google OAuth + JWT 保護個人隱私與資料安全
 
 ## 使用情境
 
@@ -59,17 +59,29 @@
 
 ## 發展藍圖
 
-### Milestone 1
+### ✅ Milestone 1 — 體位數據 MVP
 
-- 完成體位數據管理與基礎趨勢圖
+- 體位數據 CRUD API 與前端頁面
+- 體重趨勢折線圖（基礎版）
 
-### Milestone 2
+### ✅ Milestone 2 — 生活因子
 
-- 完成睡眠、每日活動與關聯標記整合
+- 睡眠紀錄 CRUD 與異常喚醒自動標記
+- 每日活動與通勤紀錄
+- 睡眠異常標記 + 步數熱度疊加至趨勢圖
 
-### Milestone 3
+### ✅ Milestone 3 — 認證與強化
 
-- 完成 Google OAuth、JWT、資料隔離、PWA 與部署能力
+- Google OAuth 2.0 登入
+- JWT / Refresh Token 機制
+- 以使用者為單位的資料隔離
+- 認證 middleware 與 rate limiting
+- CI/CD、PWA、正式域名與 HTTPS
+
+### 🚧 Milestone 4 — 首頁 Dashboard
+
+- 首頁數據卡片接上真實 API 資料
+- 首頁 30 天趨勢圖（含睡眠異常標記 + 步數熱度條）
 
 ### 未來規劃
 
@@ -85,7 +97,7 @@
 
 ## 參考文件
 
-- `docs/SRS.md`
-- `docs/plans/milestone-1-plan.md`
-- `docs/research/go-backend-guide.md`
-- `docs/research/sveltekit-guide.md`
+- `docs/SRS.md` — 需求規格與開發里程碑
+- `docs/plans/` — 各 milestone 實作計劃
+- `docs/research/go-backend-guide.md` — Go 後端學習指南
+- `docs/research/sveltekit-guide.md` — SvelteKit 前端學習指南
