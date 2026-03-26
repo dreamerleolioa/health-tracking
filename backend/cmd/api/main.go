@@ -40,6 +40,7 @@ func main() {
 		cfg.GoogleRedirectURL,
 		cfg.FrontendURL,
 		cfg.JWTRefreshTTL,
+		cfg.AppEnv == "production",
 	)
 
 	if cfg.AppEnv == "production" {

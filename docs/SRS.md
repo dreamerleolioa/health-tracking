@@ -647,20 +647,20 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 
 ### Milestone 1 — MVP：體位數據（第 2–3 週）
 
-- [ ] `body_metrics` CRUD API 完成
-- [ ] sqlc query 生成
-- [ ] SvelteKit 新增/列表頁面
-- [ ] 體重趨勢折線圖（基礎版，無關聯標記）
-- [ ] `.env` 環境切換驗證
-- [ ] `body_metrics` Handler / Repository 單元測試與整合測試
+- [x] `body_metrics` CRUD API 完成
+- [x] sqlc query 生成
+- [x] SvelteKit 新增/列表頁面
+- [x] 體重趨勢折線圖（基礎版，無關聯標記）
+- [x] `.env` 環境切換驗證
+- [x] `body_metrics` Handler / Repository 單元測試與整合測試
 
 ### Milestone 2 — 生活因子（第 4–5 週）
 
-- [ ] `sleep_logs` CRUD + 異常喚醒自動標記
-- [ ] `daily_activities` CRUD
-- [ ] 儀表板：睡眠異常標記疊加至體重趨勢圖
-- [ ] 步數熱度背景
-- [ ] `sleep_logs`、`daily_activities` Handler / Repository 測試（含 `abnormal_wake` 時區邊界測試）
+- [x] `sleep_logs` CRUD + 異常喚醒自動標記
+- [x] `daily_activities` CRUD
+- [x] 儀表板：睡眠異常標記疊加至體重趨勢圖
+- [x] 步數熱度背景
+- [x] `sleep_logs`、`daily_activities` Handler / Repository 測試（含 `abnormal_wake` 時區邊界測試）
 
 ### Milestone 3 — 認證與強化（第 6–8 週）
 

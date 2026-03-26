@@ -36,9 +36,10 @@ type AuthHandler struct {
 	oauth       *oauth2.Config
 	frontendURL string
 	refreshTTL  time.Duration
+	secureCookie bool
 }
 
-func NewAuthHandler(store AuthStore, jwtSvc *auth.JWTService, clientID, clientSecret, redirectURL, frontendURL string, refreshTTL time.Duration) *AuthHandler {
+func NewAuthHandler(store AuthStore, jwtSvc *auth.JWTService, clientID, clientSecret, redirectURL, frontendURL string, refreshTTL time.Duration, secureCookie bool) *AuthHandler {
 	oauthCfg := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -47,18 +48,35 @@ func NewAuthHandler(store AuthStore, jwtSvc *auth.JWTService, clientID, clientSe
 		Endpoint:     google.Endpoint,
 	}
 	return &AuthHandler{
-		store:       store,
-		jwtSvc:      jwtSvc,
-		oauth:       oauthCfg,
-		frontendURL: frontendURL,
-		refreshTTL:  refreshTTL,
+		store:        store,
+		jwtSvc:       jwtSvc,
+		oauth:        oauthCfg,
+		frontendURL:  frontendURL,
+		refreshTTL:   refreshTTL,
+		secureCookie: secureCookie,
 	}
+}
+
+func (h *AuthHandler) setCookie(c *gin.Context, name, value string, maxAge int) {
+	sameSite := http.SameSiteLaxMode
+	if h.secureCookie {
+		sameSite = http.SameSiteNoneMode
+	}
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		MaxAge:   maxAge,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   h.secureCookie,
+		SameSite: sameSite,
+	})
 }
 
 // GET /v1/auth/google
 func (h *AuthHandler) RedirectToGoogle(c *gin.Context) {
 	state := generateState()
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	h.setCookie(c, "oauth_state", state, 600)
 	url := h.oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -71,7 +89,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, errorResponse("INVALID_STATE", "OAuth state mismatch"))
 		return
 	}
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true) // clear
+	h.setCookie(c, "oauth_state", "", -1) // clear
 
 	ctx, cancel := withTimeout(c)
 	defer cancel()
@@ -123,8 +141,8 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	// Set httpOnly cookies
-	c.SetCookie("access_token", accessToken, int(15*time.Minute/time.Second), "/", "", false, true)
-	c.SetCookie("refresh_token", rawRefresh, int(h.refreshTTL/time.Second), "/", "", false, true)
+	h.setCookie(c, "access_token", accessToken, int(15*time.Minute/time.Second))
+	h.setCookie(c, "refresh_token", rawRefresh, int(h.refreshTTL/time.Second))
 
 	// Redirect to frontend
 	c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/auth/callback")
@@ -176,8 +194,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	// Only revoke old token after new one is safely stored
 	_ = h.store.RevokeRefreshToken(ctx, sha256Hex(rawRefresh))
 
-	c.SetCookie("access_token", accessToken, int(15*time.Minute/time.Second), "/", "", false, true)
-	c.SetCookie("refresh_token", newRawRefresh, int(h.refreshTTL/time.Second), "/", "", false, true)
+	h.setCookie(c, "access_token", accessToken, int(15*time.Minute/time.Second))
+	h.setCookie(c, "refresh_token", newRawRefresh, int(h.refreshTTL/time.Second))
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"access_token": accessToken}})
 }
 
@@ -189,8 +207,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		defer cancel()
 		_ = h.store.RevokeRefreshToken(ctx, sha256Hex(rawRefresh))
 	}
-	c.SetCookie("access_token", "", -1, "/", "", false, true)
-	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+	h.setCookie(c, "access_token", "", -1)
+	h.setCookie(c, "refresh_token", "", -1)
 	c.Status(http.StatusNoContent)
 }
 

@@ -38,7 +38,7 @@ func Load() *Config {
 
 	return &Config{
 		AppEnv:             getEnv("APP_ENV", "local"),
-		ServerPort:         getEnv("SERVER_PORT", "8080"),
+		ServerPort:         getEnvMulti("8080", "SERVER_PORT", "PORT"),
 		DatabaseURL:        getEnv("DATABASE_URL", ""),
 		CORSOrigins:        getEnv("CORS_ORIGINS", "http://localhost:5173"),
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
@@ -54,6 +54,16 @@ func Load() *Config {
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+// getEnvMulti tries each key in order, returns the first non-empty value, or fallback.
+func getEnvMulti(fallback string, keys ...string) string {
+	for _, key := range keys {
+		if v := os.Getenv(key); v != "" {
+			return v
+		}
 	}
 	return fallback
 }
