@@ -10,6 +10,10 @@
 
 	const PUBLIC_ROUTES = ['/login', '/auth/callback'];
 
+	const isPublicRoute = $derived(
+		PUBLIC_ROUTES.some((r) => $page.url.pathname.startsWith(r))
+	);
+
 	onMount(async () => {
 		await authStore.init();
 	});
@@ -40,6 +44,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-[#1a1a2e]">
+	{#if !isPublicRoute}
 	<nav class="h-14 flex items-center px-6 bg-[#E4000F]">
 		<a href="/" class="text-white font-black tracking-widest text-lg mr-auto hover:opacity-80 transition-opacity">HEALTH TRACKER</a>
 		<div class="flex items-center gap-6">
@@ -64,7 +69,12 @@
 			{/if}
 		</div>
 	</nav>
-	<main class="max-w-5xl mx-auto px-6 py-8">
+	{/if}
+	{#if isPublicRoute}
 		{@render children()}
-	</main>
+	{:else}
+		<main class="max-w-5xl mx-auto px-6 py-8">
+			{@render children()}
+		</main>
+	{/if}
 </div>

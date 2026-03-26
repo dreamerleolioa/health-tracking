@@ -49,6 +49,7 @@ func main() {
 	r := gin.Default()
 	r.SetTrustedProxies(nil)
 	r.Use(middleware.CORS(cfg.CORSOrigins))
+	r.Use(middleware.RateLimit())
 
 	v1 := r.Group("/v1")
 	{
