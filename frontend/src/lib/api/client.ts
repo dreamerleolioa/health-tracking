@@ -23,6 +23,26 @@ function makeRequest(fetchFn: typeof fetch) {
       ...init
     });
 
+    if (res.status === 401 && path !== '/auth/refresh') {
+      const refreshRes = await fetchFn(`${PUBLIC_API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (refreshRes.ok) {
+        const retryRes = await fetchFn(`${PUBLIC_API_BASE_URL}${path}`, {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          ...init
+        });
+        if (retryRes.ok) {
+          if (retryRes.status === 204) return undefined as T;
+          return retryRes.json();
+        }
+        const retryBody = await retryRes.json();
+        throw new ApiException(retryRes.status, retryBody.error);
+      }
+    }
+
     if (!res.ok) {
       const body = await res.json();
       throw new ApiException(res.status, body.error);
