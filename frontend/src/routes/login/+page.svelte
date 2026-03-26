@@ -1,5 +1,5 @@
 <script lang="ts">
-  const BACKEND_URL = 'http://localhost:8080';
+  import { PUBLIC_API_BASE_URL } from '$env/static/public';
 </script>
 
 <div class="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
@@ -7,7 +7,7 @@
     <h1 class="text-white font-black text-2xl tracking-widest">HEALTH TRACKER</h1>
     <p class="text-gray-400 text-sm text-center">請先登入以繼續使用</p>
     <a
-      href="{BACKEND_URL}/v1/auth/google"
+      href="{PUBLIC_API_BASE_URL}/auth/google"
       class="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold rounded-lg px-6 py-3 hover:bg-gray-100 transition-colors"
     >
       <svg class="w-5 h-5" viewBox="0 0 24 24">

@@ -1,14 +1,10 @@
 name: CI
 
-# 目前只支援手動觸發。
-# 上雲後在 deploy workflow 裡加 `needs: test`，或改成：
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#     branches: [main]
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   backend-test:
