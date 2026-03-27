@@ -5,7 +5,7 @@ const config = {
 	kit: {
 		adapter: adapter({ fallback: '404.html' }),
 		paths: {
-			base: '/health-tracking'
+			base: process.env.NODE_ENV === 'production' ? '/health-tracking' : ''
 		}
 	},
 	vitePlugin: {

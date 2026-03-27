@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, createApi } from './client'
 import type { DailyActivity, CommuteMode, ListResponse, ItemResponse } from '$lib/types'
 
 export type CreateDailyActivityInput = {
@@ -14,15 +14,16 @@ export async function createDailyActivity(data: CreateDailyActivityInput): Promi
   return res.data
 }
 
-export async function listDailyActivities(params?: {
-  from?: string
-  to?: string
-}): Promise<ListResponse<DailyActivity>> {
+export async function listDailyActivities(
+  params?: { from?: string; to?: string },
+  fetchFn?: typeof fetch
+): Promise<ListResponse<DailyActivity>> {
   const query = new URLSearchParams()
   if (params?.from) query.set('from', params.from)
   if (params?.to) query.set('to', params.to)
   const qs = query.toString() ? `?${query}` : ''
-  return api.get<ListResponse<DailyActivity>>(`/daily-activities${qs}`)
+  const client = fetchFn ? createApi(fetchFn) : api
+  return client.get<ListResponse<DailyActivity>>(`/daily-activities${qs}`)
 }
 
 export async function updateDailyActivity(

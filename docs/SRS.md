@@ -683,6 +683,16 @@ import { useOnline } from '@vueuse/core' // 或手動實作
 - [x] Rate Limiting
 - [x] 正式域名 + HTTPS
 
+### Milestone 4 — 首頁 Dashboard（第 9 週）
+
+- [x] 首頁 `+page.ts` 資料載入（並行呼叫三支 API，30 天範圍）
+- [x] 首頁數據卡片接上真實 body metrics 最新值
+- [x] 首頁今日睡眠摘要 + 今日步數摘要區塊
+- [x] 首頁 30 天體重趨勢圖（layerchart LineChart）
+- [x] 異常睡眠標記疊加至首頁趨勢圖
+- [x] 步數熱度條疊加至首頁趨勢圖
+- [x] `listSleepLogs` / `listDailyActivities` 補上 `fetchFn` 支援（SSR 相容）
+
 ### Milestone 5 — 進階分析（未來規劃）
 
 - [ ] 體重 × 睡眠品質相關係數計算
