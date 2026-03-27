@@ -1,4 +1,9 @@
 <script lang="ts">
+	import type { PageData } from './$types';
+	import type { BodyMetric } from '$lib/types';
+
+	let { data }: { data: PageData } = $props();
+
 	const today = new Date().toLocaleDateString('zh-TW', {
 		year: 'numeric',
 		month: 'long',
@@ -6,41 +11,53 @@
 		weekday: 'long',
 	});
 
-	// Mock 數值，之後接 API 替換
-	const metrics = [
+	const todayStr = new Date().toISOString().slice(0, 10);
+
+	// 最新一筆 body metric（API 回傳 DESC，第一筆最新）
+	const latest = $derived(data.metrics[0] as BodyMetric | undefined);
+
+	const metricCards = $derived([
 		{
 			label: '體重',
 			emoji: '⚖️',
+			value: latest?.weight_kg != null ? String(latest.weight_kg) : '—',
+			unit: latest?.weight_kg != null ? 'kg' : '',
 			prefix: '',
-			value: '72.5',
-			unit: 'kg',
 			color: '#0EA5E9',
 		},
 		{
 			label: '體脂率',
 			emoji: '🔥',
+			value: latest?.body_fat_pct != null ? String(latest.body_fat_pct) : '—',
+			unit: latest?.body_fat_pct != null ? '%' : '',
 			prefix: '',
-			value: '18.2',
-			unit: '%',
 			color: '#F59E0B',
 		},
 		{
 			label: '肌肉率',
 			emoji: '💪',
+			value: latest?.muscle_pct != null ? String(latest.muscle_pct) : '—',
+			unit: latest?.muscle_pct != null ? '%' : '',
 			prefix: '',
-			value: '35.2',
-			unit: '%',
 			color: '#10B981',
 		},
 		{
 			label: '內臟脂肪',
 			emoji: '📊',
-			prefix: 'Lv.',
-			value: '8',
+			value: latest?.visceral_fat != null ? String(latest.visceral_fat) : '—',
 			unit: '',
+			prefix: latest?.visceral_fat != null ? 'Lv.' : '',
 			color: '#8B5CF6',
 		},
-	];
+	]);
+
+	// 今日活動步數
+	const todayActivity = $derived(
+		data.activities.find(a => a.activity_date === todayStr)
+	);
+
+	// 最近睡眠
+	const latestSleep = $derived(data.sleepLogs[0]);
 </script>
 
 <!-- 頁面標題 -->
@@ -51,7 +68,7 @@
 
 <!-- 數據卡片 -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-	{#each metrics as metric}
+	{#each metricCards as metric}
 		<div
 			class="bg-white rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-150 cursor-pointer"
 		>
@@ -79,6 +96,32 @@
 		</div>
 	{/each}
 </div>
+
+<!-- 今日摘要 -->
+{#if todayActivity || latestSleep}
+	<div class="grid grid-cols-2 gap-4 mb-8">
+		{#if latestSleep}
+			<div class="bg-white/5 rounded-2xl p-4">
+				<p class="text-gray-400 text-xs tracking-wide mb-2">上次睡眠</p>
+				<p class="text-white font-bold text-lg">
+					{latestSleep.duration_min != null
+						? `${Math.floor(latestSleep.duration_min / 60)}h ${latestSleep.duration_min % 60}m`
+						: '—'}
+				</p>
+				{#if latestSleep.abnormal_wake}
+					<p class="text-orange-400 text-xs mt-1">▲ 異常喚醒</p>
+				{/if}
+			</div>
+		{/if}
+		{#if todayActivity?.steps != null}
+			<div class="bg-white/5 rounded-2xl p-4">
+				<p class="text-gray-400 text-xs tracking-wide mb-2">今日步數</p>
+				<p class="text-white font-bold text-lg">{todayActivity.steps.toLocaleString()}</p>
+				<p class="text-gray-500 text-xs mt-1">步</p>
+			</div>
+		{/if}
+	</div>
+{/if}
 
 <!-- 趨勢圖區 -->
 <div class="rounded-2xl p-6 bg-white/5">
