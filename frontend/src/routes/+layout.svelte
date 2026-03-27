@@ -36,12 +36,31 @@
 		await authStore.logout();
 		goto(resolve('/login'));
 	}
+
+	let dropdownOpen = $state(false);
+
+	function toggleDropdown() {
+		dropdownOpen = !dropdownOpen;
+	}
+
+	function closeDropdown() {
+		dropdownOpen = false;
+	}
+
+	function handleClickOutside(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		if (!target.closest('[data-avatar-menu]')) {
+			dropdownOpen = false;
+		}
+	}
 </script>
 
 <svelte:head>
 	<title>健康追蹤計劃</title>
 	<link rel="icon" href={favicon} />
 </svelte:head>
+
+<svelte:window onclick={handleClickOutside} />
 
 <div class="min-h-screen bg-[#1a1a2e]">
 	{#if !isPublicRoute}
@@ -60,12 +79,33 @@
 				{/if}
 			{/each}
 			{#if $authStore}
-				<button
-					onclick={handleLogout}
-					class="text-white font-bold text-sm tracking-wide hover:opacity-80 transition-opacity"
-				>
-					登出
-				</button>
+				<div class="relative" data-avatar-menu>
+					<button onclick={toggleDropdown} class="block rounded-full ring-2 ring-white/40 hover:ring-white/80 transition-all">
+						{#if $authStore.avatar_url}
+							<img src={$authStore.avatar_url} alt={$authStore.display_name ?? ''} class="w-8 h-8 rounded-full object-cover" />
+						{:else}
+							<div class="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-sm">
+								{($authStore.display_name ?? $authStore.email)[0].toUpperCase()}
+							</div>
+						{/if}
+					</button>
+
+					{#if dropdownOpen}
+						<div class="absolute right-0 top-full mt-2 w-44 rounded-xl bg-white shadow-lg py-1 z-50" role="menu">
+							<div class="px-4 py-2 border-b border-gray-100">
+								<p class="text-sm font-semibold text-gray-800 truncate">{$authStore.display_name ?? $authStore.email}</p>
+								<p class="text-xs text-gray-400 truncate">{$authStore.email}</p>
+							</div>
+							<button
+								onclick={() => { closeDropdown(); handleLogout(); }}
+								class="w-full text-left px-4 py-2 text-sm text-red-600 font-medium hover:bg-red-50 transition-colors"
+								role="menuitem"
+							>
+								登出
+							</button>
+						</div>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	</nav>
