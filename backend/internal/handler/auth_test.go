@@ -58,7 +58,7 @@ func (m *mockAuthStore) RevokeAllUserRefreshTokens(_ context.Context, _ uuid.UUI
 func setupAuthRouter(store handler.AuthStore, jwtSvc *auth.JWTService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := handler.NewAuthHandler(store, jwtSvc, "cid", "csec", "http://localhost/callback", "http://localhost:5173", 7*24*time.Hour)
+	h := handler.NewAuthHandler(store, jwtSvc, "cid", "csec", "http://localhost/callback", "http://localhost:5173", 7*24*time.Hour, false)
 	v1 := r.Group("/v1/auth")
 	v1.POST("/logout", h.Logout)
 	v1.POST("/refresh", h.RefreshToken)
