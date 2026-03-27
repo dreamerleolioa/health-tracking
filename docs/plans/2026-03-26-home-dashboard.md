@@ -12,12 +12,12 @@
 
 ## 背景
 
-| 檔案 | 現狀 |
-|------|------|
-| `frontend/src/routes/+page.svelte` | 使用 hardcoded mock 數據，趨勢圖是 placeholder |
-| `frontend/src/routes/+page.ts` | **不存在** |
-| `frontend/src/lib/api/sleep-logs.ts` | `listSleepLogs` 缺少 `fetchFn` 參數 |
-| `frontend/src/lib/api/daily-activities.ts` | `listDailyActivities` 缺少 `fetchFn` 參數 |
+| 檔案                                       | 現狀                                           |
+| ------------------------------------------ | ---------------------------------------------- |
+| `frontend/src/routes/+page.svelte`         | 使用 hardcoded mock 數據，趨勢圖是 placeholder |
+| `frontend/src/routes/+page.ts`             | **不存在**                                     |
+| `frontend/src/lib/api/sleep-logs.ts`       | `listSleepLogs` 缺少 `fetchFn` 參數            |
+| `frontend/src/lib/api/daily-activities.ts` | `listDailyActivities` 缺少 `fetchFn` 參數      |
 
 參考實作：`frontend/src/routes/body-metrics/+page.ts` 和 `body-metrics/+page.svelte` 已有完整的圖表 + anomaly marker + steps heatmap 模式，直接沿用。
 
@@ -26,6 +26,7 @@
 ## Task 1：補上 `fetchFn` 支援
 
 **Files:**
+
 - Modify: `frontend/src/lib/api/sleep-logs.ts`
 - Modify: `frontend/src/lib/api/daily-activities.ts`
 
@@ -33,87 +34,87 @@
 
 ```typescript
 // sleep-logs.ts 修改後
-import { api, createApi } from './client'
-import type { SleepLog, ListResponse, ItemResponse } from '$lib/types'
+import { api, createApi } from "./client";
+import type { SleepLog, ListResponse, ItemResponse } from "$lib/types";
 
 export type CreateSleepLogInput = {
-  sleep_at: string
-  wake_at: string
-  quality?: number
-  note?: string
-}
+  sleep_at: string;
+  wake_at: string;
+  quality?: number;
+  note?: string;
+};
 
 export async function createSleepLog(data: CreateSleepLogInput): Promise<SleepLog> {
-  const res = await api.post<ItemResponse<SleepLog>>('/sleep-logs', data)
-  return res.data
+  const res = await api.post<ItemResponse<SleepLog>>("/sleep-logs", data);
+  return res.data;
 }
 
 export async function listSleepLogs(
   params?: { from?: string; to?: string; abnormal_only?: boolean },
-  fetchFn?: typeof fetch
+  fetchFn?: typeof fetch,
 ): Promise<ListResponse<SleepLog>> {
-  const query = new URLSearchParams()
-  if (params?.from) query.set('from', params.from)
-  if (params?.to) query.set('to', params.to)
-  if (params?.abnormal_only) query.set('abnormal_only', 'true')
-  const qs = query.toString() ? `?${query}` : ''
-  const client = fetchFn ? createApi(fetchFn) : api
-  return client.get<ListResponse<SleepLog>>(`/sleep-logs${qs}`)
+  const query = new URLSearchParams();
+  if (params?.from) query.set("from", params.from);
+  if (params?.to) query.set("to", params.to);
+  if (params?.abnormal_only) query.set("abnormal_only", "true");
+  const qs = query.toString() ? `?${query}` : "";
+  const client = fetchFn ? createApi(fetchFn) : api;
+  return client.get<ListResponse<SleepLog>>(`/sleep-logs${qs}`);
 }
 
 export async function updateSleepLog(
   id: string,
-  data: Partial<CreateSleepLogInput>
+  data: Partial<CreateSleepLogInput>,
 ): Promise<SleepLog> {
-  const res = await api.patch<ItemResponse<SleepLog>>(`/sleep-logs/${id}`, data)
-  return res.data
+  const res = await api.patch<ItemResponse<SleepLog>>(`/sleep-logs/${id}`, data);
+  return res.data;
 }
 
 export async function deleteSleepLog(id: string): Promise<void> {
-  return api.delete(`/sleep-logs/${id}`)
+  return api.delete(`/sleep-logs/${id}`);
 }
 ```
 
 ```typescript
 // daily-activities.ts 修改後
-import { api, createApi } from './client'
-import type { DailyActivity, CommuteMode, ListResponse, ItemResponse } from '$lib/types'
+import { api, createApi } from "./client";
+import type { DailyActivity, CommuteMode, ListResponse, ItemResponse } from "$lib/types";
 
 export type CreateDailyActivityInput = {
-  activity_date: string
-  steps?: number
-  commute_mode?: CommuteMode
-  commute_minutes?: number
-  note?: string
-}
+  activity_date: string;
+  steps?: number;
+  commute_mode?: CommuteMode;
+  commute_minutes?: number;
+  note?: string;
+};
 
 export async function createDailyActivity(data: CreateDailyActivityInput): Promise<DailyActivity> {
-  const res = await api.post<ItemResponse<DailyActivity>>('/daily-activities', data)
-  return res.data
+  const res = await api.post<ItemResponse<DailyActivity>>("/daily-activities", data);
+  return res.data;
 }
 
 export async function listDailyActivities(
   params?: { from?: string; to?: string },
-  fetchFn?: typeof fetch
+  fetchFn?: typeof fetch,
 ): Promise<ListResponse<DailyActivity>> {
-  const query = new URLSearchParams()
-  if (params?.from) query.set('from', params.from)
-  if (params?.to) query.set('to', params.to)
-  const qs = query.toString() ? `?${query}` : ''
-  const client = fetchFn ? createApi(fetchFn) : api
-  return client.get<ListResponse<DailyActivity>>(`/daily-activities${qs}`)
+  const query = new URLSearchParams();
+  if (params?.from) query.set("from", params.from);
+  if (params?.to) query.set("to", params.to);
+  const qs = query.toString() ? `?${query}` : "";
+  const client = fetchFn ? createApi(fetchFn) : api;
+  return client.get<ListResponse<DailyActivity>>(`/daily-activities${qs}`);
 }
 
 export async function updateDailyActivity(
   id: string,
-  data: Partial<Omit<CreateDailyActivityInput, 'activity_date'>>
+  data: Partial<Omit<CreateDailyActivityInput, "activity_date">>,
 ): Promise<DailyActivity> {
-  const res = await api.patch<ItemResponse<DailyActivity>>(`/daily-activities/${id}`, data)
-  return res.data
+  const res = await api.patch<ItemResponse<DailyActivity>>(`/daily-activities/${id}`, data);
+  return res.data;
 }
 
 export async function deleteDailyActivity(id: string): Promise<void> {
-  return api.delete(`/daily-activities/${id}`)
+  return api.delete(`/daily-activities/${id}`);
 }
 ```
 
@@ -130,6 +131,7 @@ export async function deleteDailyActivity(id: string): Promise<void> {
 ```bash
 cd frontend && npx tsc --noEmit
 ```
+
 預期：無錯誤輸出。
 
 **Step 4: ⏸ 暫停，請手動 commit**
@@ -144,13 +146,14 @@ git commit -m "feat: add fetchFn support to listSleepLogs and listDailyActivitie
 ## Task 2：建立首頁 `+page.ts` 資料載入
 
 **Files:**
+
 - Create: `frontend/src/routes/+page.ts`
 
 ```typescript
-import { listBodyMetrics } from '$lib/api/body-metrics';
-import { listSleepLogs } from '$lib/api/sleep-logs';
-import { listDailyActivities } from '$lib/api/daily-activities';
-import type { PageLoad } from './$types';
+import { listBodyMetrics } from "$lib/api/body-metrics";
+import { listSleepLogs } from "$lib/api/sleep-logs";
+import { listDailyActivities } from "$lib/api/daily-activities";
+import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async ({ fetch }) => {
   const today = new Date();
@@ -166,9 +169,9 @@ export const load: PageLoad = async ({ fetch }) => {
   ]);
 
   return {
-    metrics: metricsRes.status === 'fulfilled' ? metricsRes.value.data : [],
-    sleepLogs: sleepRes.status === 'fulfilled' ? sleepRes.value.data : [],
-    activities: activityRes.status === 'fulfilled' ? activityRes.value.data : [],
+    metrics: metricsRes.status === "fulfilled" ? metricsRes.value.data : [],
+    sleepLogs: sleepRes.status === "fulfilled" ? sleepRes.value.data : [],
+    activities: activityRes.status === "fulfilled" ? activityRes.value.data : [],
   };
 };
 ```
@@ -203,9 +206,11 @@ git commit -m "feat: add home page data loader with 30-day range"
 ## Task 3：更新首頁數據卡片（替換 mock 數據）
 
 **Files:**
+
 - Modify: `frontend/src/routes/+page.svelte`
 
 **說明：**
+
 - 從 `data.metrics` 取第一筆（最新一筆，API 回傳 ORDER BY recorded_at DESC）作為 "今日" 數值
 - 若無資料，顯示 `—`
 - `data.sleepLogs[0]` 為最近一筆睡眠紀錄
@@ -312,6 +317,7 @@ template 中的 `{#each metrics as metric}` 改為 `{#each metricCards as metric
 **Step 4: 驗證頁面**
 
 啟動 dev server，以登入狀態開啟首頁，確認：
+
 - 數據卡片顯示真實數值（或 `—`）
 - 今日摘要區塊正常顯示
 
@@ -327,6 +333,7 @@ git commit -m "feat: connect home page metric cards to real API data"
 ## Task 4：首頁趨勢圖（30 天）
 
 **Files:**
+
 - Modify: `frontend/src/routes/+page.svelte`
 
 **說明：** 沿用 `body-metrics/+page.svelte` 的圖表模式：`layerchart` LineChart + 異常睡眠標記條 + 步數熱度條。
@@ -496,6 +503,7 @@ git commit -m "feat: implement 30-day trend chart on home dashboard"
 ## Task 5：更新 SRS 標記 M1、M2、M4 完成
 
 **Files:**
+
 - Modify: `docs/SRS.md`
 
 **Step 1: 在 SRS 加入 Milestone 4 區塊並標記完成**
@@ -527,11 +535,11 @@ git commit -m "docs: mark M1, M2, M4 as complete in SRS"
 
 ## 完成驗收標準
 
-| 驗收項目 | 方法 |
-|----------|------|
-| 首頁卡片顯示最新 body metric 真實數值 | 瀏覽器目測 |
-| 首頁卡片無資料時顯示 `—` | 刪除所有 body_metrics 後重整（測完再還原）|
-| 趨勢圖在有 ≥2 筆資料時正常繪製 | 瀏覽器目測 |
-| 趨勢圖在 < 2 筆時顯示提示文字 | 瀏覽器目測 |
-| 異常睡眠日顯示橘色 ▲ | 確認 sleep_log 中有 abnormal_wake=true 的資料 |
-| `npx tsc --noEmit` 無錯誤 | Terminal |
+| 驗收項目                              | 方法                                          |
+| ------------------------------------- | --------------------------------------------- |
+| 首頁卡片顯示最新 body metric 真實數值 | 瀏覽器目測                                    |
+| 首頁卡片無資料時顯示 `—`              | 刪除所有 body_metrics 後重整（測完再還原）    |
+| 趨勢圖在有 ≥2 筆資料時正常繪製        | 瀏覽器目測                                    |
+| 趨勢圖在 < 2 筆時顯示提示文字         | 瀏覽器目測                                    |
+| 異常睡眠日顯示橘色 ▲                  | 確認 sleep_log 中有 abnormal_wake=true 的資料 |
+| `npx tsc --noEmit` 無錯誤             | Terminal                                      |
