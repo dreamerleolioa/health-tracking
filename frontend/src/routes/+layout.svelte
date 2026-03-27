@@ -28,9 +28,9 @@
 	});
 
 	const navItems = [
-		{ label: '體位數據', href: '/body-metrics', enabled: true },
-		{ label: '睡眠', href: '/sleep-logs', enabled: true },
-		{ label: '活動', href: '/daily-activities', enabled: true },
+		{ label: '體位數據', href: `${base}/body-metrics`, enabled: true },
+		{ label: '睡眠', href: `${base}/sleep-logs`, enabled: true },
+		{ label: '活動', href: `${base}/daily-activities`, enabled: true },
 	];
 
 	async function handleLogout() {
@@ -47,7 +47,7 @@
 <div class="min-h-screen bg-[#1a1a2e]">
 	{#if !isPublicRoute}
 	<nav class="h-14 flex items-center px-6 bg-[#E4000F]">
-		<a href="/" class="text-white font-black tracking-widest text-lg mr-auto hover:opacity-80 transition-opacity">HEALTH TRACKER</a>
+		<a href="{base}/" class="text-white font-black tracking-widest text-lg mr-auto hover:opacity-80 transition-opacity">HEALTH TRACKER</a>
 		<div class="flex items-center gap-6">
 			{#each navItems as item}
 				{#if item.enabled}
