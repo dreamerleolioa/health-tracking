@@ -223,19 +223,11 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusNotFound, errorResponse("NOT_FOUND", "user not found"))
 		return
 	}
-	var displayName *string
-	if user.DisplayName.Valid {
-		displayName = &user.DisplayName.String
-	}
-	var avatarUrl *string
-	if user.AvatarUrl.Valid {
-		avatarUrl = &user.AvatarUrl.String
-	}
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
 		"id":            user.ID,
 		"email":         user.Email,
-		"display_name":  displayName,
-		"avatar_url":    avatarUrl,
+		"display_name":  user.DisplayName,
+		"avatar_url":    user.AvatarUrl,
 		"created_at":    user.CreatedAt,
 		"last_login_at": user.LastLoginAt,
 	}})
